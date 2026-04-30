@@ -18,7 +18,7 @@ Future<void> main() async {
 
 class LifePatternApp extends ConsumerWidget {
   const LifePatternApp({super.key});
-
+//testing comment
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
