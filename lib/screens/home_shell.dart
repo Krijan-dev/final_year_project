@@ -2,7 +2,10 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/screens/ai_suggestions_screen.dart";
 import "package:life_pattern_tracker/screens/apps_screen.dart";
+import "package:life_pattern_tracker/screens/charts_screen.dart";
+import "package:life_pattern_tracker/screens/chatbot_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
 
@@ -21,12 +24,37 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final state = ref.watch(usageProvider);
     final notifier = ref.read(usageProvider.notifier);
     final sessionEmail = ref.watch(authProvider.select((a) => a.email));
-    const pages = [DashboardScreen(), InsightsScreen(), AppsScreen()];
-    const titles = ["Dashboard", "Insights", "Apps"];
+    const pages = [
+      DashboardScreen(),
+      ChartsScreen(),
+      ChatbotScreen(),
+      AiSuggestionsScreen(),
+      InsightsScreen(),
+      AppsScreen(),
+    ];
+    const titles = [
+      "Dashboard",
+      "Charts",
+      "Chatbot",
+      "AI Suggestions",
+      "Insights",
+      "Apps",
+    ];
+    final safeIndex = _index.clamp(0, pages.length - 1);
+    if (safeIndex != _index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() => _index = safeIndex);
+        }
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(titles[_index]),
+        title: Text(
+          titles[safeIndex],
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         actions: [
           IconButton(
             onPressed: () => notifier.refreshToday(),
@@ -59,18 +87,33 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
       body: Stack(
         children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            child: KeyedSubtree(key: ValueKey(_index), child: pages[_index]),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+                  Theme.of(context).scaffoldBackgroundColor,
+                ],
+              ),
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 280),
+              child: KeyedSubtree(key: ValueKey(safeIndex), child: pages[safeIndex]),
+            ),
           ),
           if (state.syncing) const LinearProgressIndicator(minHeight: 2),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
+        selectedIndex: safeIndex,
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: "Charts"),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: "Chatbot"),
+          NavigationDestination(icon: Icon(Icons.psychology_outlined), label: "AI"),
           NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
           NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
         ],

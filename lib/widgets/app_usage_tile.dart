@@ -23,18 +23,30 @@ class AppUsageTile extends StatelessWidget {
     final percent = totalMinutes <= 0 ? 0.0 : (app.usageTime / totalMinutes * 100);
     final color = Theme.of(context).colorScheme.primaryContainer;
     final onColor = Theme.of(context).colorScheme.onPrimaryContainer;
+    final theme = Theme.of(context);
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: color,
-        foregroundColor: onColor,
-        child: Text(_initial(app.appName)),
-      ),
-      title: Text(app.appName, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text("${percent.toStringAsFixed(1)}% of total"),
-      trailing: Text(
-        formatMinutes(app.usageTime),
-        style: const TextStyle(fontWeight: FontWeight.w600),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color,
+          foregroundColor: onColor,
+          child: Text(_initial(app.appName)),
+        ),
+        title: Text(
+          app.appName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          "${percent.toStringAsFixed(1)}% of total",
+          style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        trailing: Text(
+          formatMinutes(app.usageTime),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

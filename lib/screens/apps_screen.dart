@@ -15,10 +15,9 @@ class AppsScreen extends ConsumerWidget {
       return const Center(child: Text("No app usage data available yet."));
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
       itemCount: today.appUsages.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final app = today.appUsages[index];
         return AppUsageTile(
