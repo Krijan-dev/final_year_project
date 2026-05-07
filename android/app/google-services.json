@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "502535900986",
+    "project_id": "android-app-723a5",
+    "storage_bucket": "android-app-723a5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:502535900986:android:d429bf0426b900eff58a03",
+        "android_client_info": {
+          "package_name": "com.example.life_pattern_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBNztM7Jz_zwAIqlWPf1I6cTQAEl8Amu3o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

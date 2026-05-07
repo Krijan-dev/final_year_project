@@ -60,3 +60,21 @@ docker compose run --rm flutter flutter test
 - This Docker setup is best for dependency setup, static analysis, and tests.
 - Building and running Android APKs fully inside Docker is possible but requires a larger Android SDK/emulator setup and is intentionally not included here.
 - For day-to-day app execution on device/emulator, use local Flutter + Android tooling.
+
+## 6) Gemini API key setup (AI chat + AI suggestions)
+
+This app reads the Gemini key using Dart define (no hardcoded secrets in source):
+
+```powershell
+flutter run --dart-define=GEMINI_API_KEY=your_actual_key_here
+```
+
+For release builds:
+
+```powershell
+flutter build apk --dart-define=GEMINI_API_KEY=your_actual_key_here
+```
+
+Notes:
+- Never commit API keys to git.
+- If the key is missing, the app shows fallback messages/suggestions instead of AI responses.
