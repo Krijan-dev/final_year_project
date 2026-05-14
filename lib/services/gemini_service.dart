@@ -1,21 +1,31 @@
 import "package:google_generative_ai/google_generative_ai.dart";
+import "package:life_pattern_tracker/services/gemini_key_store.dart";
 
 class GeminiService {
   GeminiService._();
 
-  static const String _apiKey = String.fromEnvironment("GEMINI_API_KEY");
+  static const String _compileTimeApiKey = String.fromEnvironment("GEMINI_API_KEY");
+
+  /// Compile-time (`--dart-define` / `--dart-define-from-file=.env`) or debug Hive override.
+  static String get resolvedApiKey {
+    final fromCompile = _compileTimeApiKey.trim();
+    if (fromCompile.isNotEmpty) return fromCompile;
+    return GeminiKeyStore.readDebugOverride();
+  }
+
   static const List<String> _modelCandidates = [
-    "gemini-2.0-flash",
+    "gemini-2.5-flash",
     "gemini-1.5-flash-latest",
     "gemini-1.5-flash",
+    "gemini-1.5-pro",
   ];
 
-  static bool get isConfigured => _apiKey.trim().isNotEmpty;
+  static bool get isConfigured => resolvedApiKey.isNotEmpty;
 
   static GenerativeModel _model(String modelName) {
     return GenerativeModel(
       model: modelName,
-      apiKey: _apiKey,
+      apiKey: resolvedApiKey,
     );
   }
 
@@ -31,8 +41,12 @@ class GeminiService {
       } catch (e) {
         lastError = e;
         final message = e.toString().toLowerCase();
-        final modelMissing = message.contains("not found") || message.contains("unsupported");
-        if (!modelMissing) rethrow;
+        final tryNextModel = message.contains("not found") ||
+            message.contains("unsupported") ||
+            message.contains("no longer available") ||
+            message.contains("not available to new users") ||
+            message.contains("deprecated");
+        if (!tryNextModel) rethrow;
       }
     }
     throw Exception(
@@ -48,7 +62,9 @@ class GeminiService {
     required int productivityScore,
   }) async {
     if (!isConfigured) {
-      return "Gemini API key is missing. Run with --dart-define=GEMINI_API_KEY=your_key.";
+      return "Gemini API key is missing. Use .\\run_dev.ps1 or "
+          "flutter run --dart-define-from-file=.env (then fully stop and start again — hot reload "
+          "cannot load new compile-time keys). In debug, use the app bar menu: Paste Gemini key.";
     }
 
     final prompt = """
@@ -79,7 +95,8 @@ Rules:
   }) async {
     if (!isConfigured) {
       return const [
-        "Gemini API key is missing. Run with --dart-define=GEMINI_API_KEY=your_key.",
+        "Gemini API key is missing. Run with --dart-define-from-file=.env after a full restart, "
+        "or paste key via debug menu.",
       ];
     }
 
