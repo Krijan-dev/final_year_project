@@ -48,6 +48,10 @@ Run setup + analyze + tests in Docker:
 .\docker\run.ps1
 ```
 
+## MongoDB / cloud backup
+
+See `docs/MONGODB.md` for the Node API in `server/` and how to set `API_BASE_URL` in `.env`.
+
 ## Full Guide
 
 See `docs/USAGE_AND_DOCKER.md` for:
