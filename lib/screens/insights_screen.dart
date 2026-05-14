@@ -101,7 +101,7 @@ class InsightsScreen extends ConsumerWidget {
     if (peakHour < 12) return "Morning";
     if (peakHour < 18) return "Afternoon";
     return "Night";
-    }
+  }
 
   Map<String, int> _categoryBreakdown(DailyUsageModel? model) {
     if (model == null) return {};

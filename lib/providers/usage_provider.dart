@@ -93,7 +93,7 @@ class UsageNotifier extends StateNotifier<UsageState> {
       final history = await _storageService.getAllDays();
       state = state.copyWith(
         syncing: false,
-        today: today,
+        today: today ?? state.today,
         history: history,
       );
     } catch (e) {

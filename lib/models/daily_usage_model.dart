@@ -1,4 +1,4 @@
-import "app_usage_model.dart";
+import "package:life_pattern_tracker/models/app_usage_model.dart";
 
 class DailyUsageModel {
   const DailyUsageModel({
