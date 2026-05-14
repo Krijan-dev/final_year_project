@@ -1,8 +1,10 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/providers/habits_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/summary_card.dart";
+import "package:life_pattern_tracker/widgets/this_weeks_habits_card.dart";
 import "package:life_pattern_tracker/widgets/usage_bar_chart.dart";
 
 class DashboardScreen extends ConsumerWidget {
@@ -12,10 +14,16 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usageState = ref.watch(usageProvider);
     final notifier = ref.read(usageProvider.notifier);
+    final habitsNotifier = ref.read(habitsProvider.notifier);
     final today = usageState.today;
 
     return RefreshIndicator(
-      onRefresh: notifier.refreshToday,
+      onRefresh: () async {
+        await Future.wait<void>([
+          notifier.refreshToday(),
+          habitsNotifier.refresh(),
+        ]);
+      },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -25,7 +33,10 @@ class DashboardScreen extends ConsumerWidget {
             value: formatMinutes(today?.totalScreenTime ?? 0),
             subtitle: today == null ? "No data yet" : formatDateShort(today.date),
             icon: Icons.hourglass_top_rounded,
+            color: Colors.red,
           ),
+          const SizedBox(height: 12),
+          const ThisWeeksHabitsSection(),
           const SizedBox(height: 12),
           Row(
             children: [

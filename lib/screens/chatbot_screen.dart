@@ -12,8 +12,8 @@ class ChatbotScreen extends ConsumerStatefulWidget {
 
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<_ChatMessage> _messages = const [
-    _ChatMessage(
+  final List<_ChatMessage> _messages = [
+    const _ChatMessage(
       text: "Hi! I am your productivity assistant. Ask me about your usage or focus tips.",
       isUser: false,
     ),
