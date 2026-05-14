@@ -5,8 +5,9 @@
 `life_pattern_tracker` is a Flutter app that helps you monitor digital behavior:
 - Dashboard views for daily and trend insights
 - Charts for hourly and weekly usage
-- App usage breakdown
-- Chatbot and AI suggestion pages for productivity guidance
+- **Habits** page (weekly banner, week grid, mood strip, today's log — sample data for now)
+- Top app usage on the dashboard (no separate Apps tab)
+- Floating assistant chat (opens from the round chat button) and AI suggestion page
 
 ## 2) Run the app normally (without Docker)
 
