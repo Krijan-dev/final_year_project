@@ -1,6 +1,7 @@
 import "dart:math";
 
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/data/demo_usage_data.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
@@ -99,6 +100,17 @@ class UsageNotifier extends StateNotifier<UsageState> {
     } catch (e) {
       state = state.copyWith(syncing: false, error: e.toString());
     }
+  }
+
+  /// Debug-only: replace in-memory today + ~1 week history with demo data (not written to storage).
+  /// Use refresh to load real stats again.
+  void loadDemoUsage() {
+    final week = buildDemoWeekHistory();
+    state = state.copyWith(
+      today: week.isNotEmpty ? week.last : buildDemoDailyUsage(),
+      history: week,
+      clearError: true,
+    );
   }
 
   int averageDailyMinutes() {

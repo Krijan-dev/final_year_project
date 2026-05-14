@@ -10,11 +10,35 @@ Install dependencies:
 flutter pub get
 ```
 
-Run app:
+Run app (with Gemini key from `.env` — recommended):
+
+**If PowerShell blocks `run_dev.ps1` (execution policy):** use Command Prompt or double‑click `run_dev.bat`, or run:
 
 ```powershell
-flutter run
+powershell -ExecutionPolicy Bypass -File .\run_dev.ps1
 ```
+
+Otherwise:
+
+```powershell
+.\run_dev.ps1
+```
+
+Or from **cmd.exe**:
+
+```bat
+run_dev.bat
+```
+
+Or pass the file directly:
+
+```powershell
+flutter run --dart-define-from-file=.env
+```
+
+One-time setup: copy `.env.example` to `.env` and set `GEMINI_API_KEY=...`.
+
+**Note:** The key from `.env` is applied when the **Flutter process starts**. Hot reload does not reload it. Stop the app, then run `.\run_dev.ps1` again. In **debug**, you can also use **Account → Paste Gemini key (debug)** so the key works immediately (including after hot reload).
 
 ## Docker Workflow
 

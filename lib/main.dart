@@ -1,5 +1,6 @@
 import "dart:io";
 
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_flutter/hive_flutter.dart";
@@ -13,6 +14,15 @@ import "package:life_pattern_tracker/screens/welcome_screen.dart";
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  await Hive.openBox<dynamic>("app_settings");
+  if (kDebugMode) {
+    const compileKey = String.fromEnvironment("GEMINI_API_KEY");
+    debugPrint(
+      "GEMINI_API_KEY compile-time length: ${compileKey.length} "
+      "(0 = start app with .\\run_dev.ps1, launch config, or VS Code Flutter args so "
+      "--dart-define-from-file=.env is applied)",
+    );
+  }
   runApp(const ProviderScope(child: LifePatternApp()));
 }
 
