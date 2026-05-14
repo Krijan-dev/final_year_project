@@ -134,3 +134,4 @@ Notes:
 - **Cursor / VS Code:** This repo includes `.vscode/settings.json` so **Run / Debug** passes `--dart-define-from-file=.env` from the project root. If you added it recently, **reload the window** or restart the IDE once, then stop the app and run again.
 - **`.env` format:** use `GEMINI_API_KEY=yourkey` with **no space** after `=`. A leading space in the value can prevent the define from loading correctly in some setups.
 - **Debug workaround:** Account menu → **Paste Gemini key (debug)** stores the key in Hive on the device; that path **does** update after save without recompiling, and survives hot reload.
+- **MongoDB backup:** optional `API_BASE_URL` in the same `.env` file syncs each refreshed day to your API — see `docs/MONGODB.md`.

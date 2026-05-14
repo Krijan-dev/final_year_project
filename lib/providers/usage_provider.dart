@@ -1,13 +1,17 @@
+import "dart:async";
 import "dart:math";
 
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/data/demo_usage_data.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
+import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
 
 final usageStatsServiceProvider = Provider<UsageStatsService>((ref) => UsageStatsService());
 final usageStorageServiceProvider = Provider<UsageStorageService>((ref) => UsageStorageService());
+final usageRemoteServiceProvider = Provider<UsageRemoteService>((ref) => UsageRemoteService());
 
 class UsageState {
   const UsageState({
@@ -49,12 +53,19 @@ class UsageState {
 }
 
 class UsageNotifier extends StateNotifier<UsageState> {
-  UsageNotifier(this._statsService, this._storageService) : super(const UsageState()) {
+  UsageNotifier(
+    this._statsService,
+    this._storageService,
+    this._remoteService,
+    this._currentUserEmail,
+  ) : super(const UsageState()) {
     initialize();
   }
 
   final UsageStatsService _statsService;
   final UsageStorageService _storageService;
+  final UsageRemoteService _remoteService;
+  final String? Function() _currentUserEmail;
 
   Future<void> initialize() async {
     try {
@@ -90,6 +101,10 @@ class UsageNotifier extends StateNotifier<UsageState> {
       final today = await _statsService.getUsageStats();
       if (today != null) {
         await _storageService.saveDay(today);
+        final email = _currentUserEmail();
+        if (email != null && email.isNotEmpty && _remoteService.isConfigured) {
+          unawaited(_remoteService.uploadUsageDay(userEmail: email, day: today));
+        }
       }
       final history = await _storageService.getAllDays();
       state = state.copyWith(
@@ -143,5 +158,7 @@ final usageProvider = StateNotifierProvider<UsageNotifier, UsageState>((ref) {
   return UsageNotifier(
     ref.read(usageStatsServiceProvider),
     ref.read(usageStorageServiceProvider),
+    ref.read(usageRemoteServiceProvider),
+    () => ref.read(authProvider).email,
   );
 });
