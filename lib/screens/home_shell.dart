@@ -4,10 +4,10 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/screens/ai_suggestions_screen.dart";
-import "package:life_pattern_tracker/screens/apps_screen.dart";
 import "package:life_pattern_tracker/screens/charts_screen.dart";
 import "package:life_pattern_tracker/screens/chatbot_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
+import "package:life_pattern_tracker/screens/habits_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
 import "package:life_pattern_tracker/services/gemini_key_store.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
@@ -30,10 +30,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     const titles = [
       "Dashboard",
       "Charts",
-      "Chatbot",
+      "Habits",
       "AI Suggestions",
       "Insights",
-      "Apps",
     ];
     final geminiChatKey = ValueKey<String>(
       "gemini_${GeminiService.isConfigured}_${GeminiService.resolvedApiKey.length}",
@@ -41,10 +40,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final pages = [
       const DashboardScreen(),
       const ChartsScreen(),
-      ChatbotScreen(key: geminiChatKey),
+      const HabitsScreen(),
       AiSuggestionsScreen(key: geminiChatKey),
       const InsightsScreen(),
-      const AppsScreen(),
     ];
     final safeIndex = _index.clamp(0, pages.length - 1);
     if (safeIndex != _index) {
@@ -132,6 +130,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ),
           ),
           if (state.syncing) const LinearProgressIndicator(minHeight: 2),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: _FloatingChatButton(
+              onPressed: () => _openFloatingChat(context, geminiChatKey),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -140,12 +145,79 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
           NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: "Charts"),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: "Chatbot"),
+          NavigationDestination(icon: Icon(Icons.task_alt_outlined), label: "Habits"),
           NavigationDestination(icon: Icon(Icons.psychology_outlined), label: "AI"),
           NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
-          NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
         ],
       ),
+    );
+  }
+
+  void _openFloatingChat(BuildContext context, ValueKey<String> geminiChatKey) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (sheetContext) {
+        final radius = BorderRadius.circular(20);
+        return Padding(
+          padding: EdgeInsets.only(top: MediaQuery.of(sheetContext).padding.top + 24),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.58,
+            minChildSize: 0.32,
+            maxChildSize: 0.94,
+            expand: false,
+            builder: (context, _) {
+              return Material(
+                elevation: 12,
+                shadowColor: Colors.black26,
+                borderRadius: radius,
+                clipBehavior: Clip.antiAlias,
+                color: Theme.of(sheetContext).colorScheme.surface,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(sheetContext).colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 0),
+                      child: Row(
+                        children: [
+                          Icon(Icons.smart_toy_outlined, color: Theme.of(sheetContext).colorScheme.primary),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Assistant",
+                            style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                            tooltip: "Close",
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ChatbotScreen(key: geminiChatKey),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -182,5 +254,32 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     } finally {
       controller.dispose();
     }
+  }
+}
+
+class _FloatingChatButton extends StatelessWidget {
+  const _FloatingChatButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 10,
+      shadowColor: Colors.black38,
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      color: scheme.primary,
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 58,
+          height: 58,
+          child: Icon(Icons.chat_rounded, color: scheme.onPrimary, size: 28),
+        ),
+      ),
+    );
   }
 }
