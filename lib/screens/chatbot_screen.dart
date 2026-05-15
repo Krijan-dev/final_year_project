@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
-import "package:flutter/foundation.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/services/ai_scope.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
 
 class ChatbotScreen extends ConsumerStatefulWidget {
@@ -16,7 +16,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final List<_ChatMessage> _messages = [
     _ChatMessage(
       text: GeminiService.isConfigured
-          ? "Hi! I am your Gemini productivity assistant. Ask me anything about your habits."
+          ? "Hi! I help with habits, screen time, sleep, focus, and productivity using your app data. "
+              "Off-topic messages are answered locally (no API call)."
           : "Hi! Add GEMINI_API_KEY with --dart-define to enable AI chat.",
       isUser: false,
     ),
@@ -59,14 +60,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
               TextButton(
                 onPressed: () {
                   setState(() {
-                    _messages.add(
-                      _ChatMessage(
-                        text: GeminiService.isConfigured
-                            ? "AI key detected. If calls fail, the next message will show the exact error."
-                            : "No key detected. Start with: flutter run --dart-define=GEMINI_API_KEY=...",
-                        isUser: false,
-                      ),
-                    );
+                    _messages.add(const _ChatMessage(text: AiScope.helpReply, isUser: false));
                   });
                 },
                 child: const Text("Help"),
@@ -112,7 +106,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: const InputDecoration(
-                      hintText: "Ask a question...",
+                      hintText: "Screen time, habits, sleep, focus…",
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -139,14 +133,31 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _loading) return;
-    final state = ref.read(usageProvider);
-    final notifier = ref.read(usageProvider.notifier);
+
+    final scope = AiScope.classify(text);
+    if (scope == AiScopeDecision.empty) return;
 
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true));
-      _loading = true;
     });
     _controller.clear();
+
+    final localReply = switch (scope) {
+      AiScopeDecision.greeting => AiScope.greetingReply,
+      AiScopeDecision.help => AiScope.helpReply,
+      AiScopeDecision.offTopic => AiScope.offTopicReply,
+      AiScopeDecision.empty => null,
+      AiScopeDecision.allowed => null,
+    };
+    if (localReply != null) {
+      setState(() => _messages.add(_ChatMessage(text: localReply, isUser: false)));
+      return;
+    }
+
+    final state = ref.read(usageProvider);
+    final notifier = ref.read(usageProvider.notifier);
+
+    setState(() => _loading = true);
 
     try {
       final response = await GeminiService.chatReply(

@@ -1,4 +1,5 @@
 import "package:google_generative_ai/google_generative_ai.dart";
+import "package:life_pattern_tracker/services/ai_scope.dart";
 import "package:life_pattern_tracker/services/gemini_key_store.dart";
 
 class GeminiService {
@@ -22,10 +23,24 @@ class GeminiService {
 
   static bool get isConfigured => resolvedApiKey.isNotEmpty;
 
+  static const String _coachSystemInstruction = """
+You are the Life Pattern Tracker assistant — a concise productivity and wellness coach.
+You ONLY discuss: habits, routines, screen time, phone usage, sleep, exercise, mood, focus, productivity scores, and goals using the user's app metrics.
+If the user asks anything else, reply ONLY with this exact sentence and nothing else:
+"${AiScope.offTopicReply}"
+Never answer off-topic questions, even briefly. No jokes, code, homework, news, or general knowledge.
+Keep replies under 80 words. Mention at most one metric when relevant.
+""";
+
   static GenerativeModel _model(String modelName) {
     return GenerativeModel(
       model: modelName,
       apiKey: resolvedApiKey,
+      systemInstruction: Content.system(_coachSystemInstruction),
+      generationConfig: GenerationConfig(
+        temperature: 0.35,
+        maxOutputTokens: 180,
+      ),
     );
   }
 
@@ -61,6 +76,10 @@ class GeminiService {
     required int focusScore,
     required int productivityScore,
   }) async {
+    if (!AiScope.allowsApiCall(userPrompt)) {
+      return AiScope.offTopicReply;
+    }
+
     if (!isConfigured) {
       return "Gemini API key is missing. Use .\\run_dev.ps1 or "
           "flutter run --dart-define-from-file=.env (then fully stop and start again — hot reload "
@@ -68,7 +87,6 @@ class GeminiService {
     }
 
     final prompt = """
-You are a concise productivity coach inside a Flutter app.
 User metrics:
 - Today usage minutes: $todayMinutes
 - Average daily usage minutes: $averageMinutes
@@ -76,11 +94,6 @@ User metrics:
 - Productivity score (0-100): $productivityScore
 
 User question: "$userPrompt"
-
-Rules:
-- Keep response under 90 words.
-- Give direct practical advice.
-- Mention at most one metric in the reply.
 """;
 
     final text = await _generateWithFallback(prompt);
