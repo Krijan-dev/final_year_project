@@ -3,6 +3,7 @@ import "dart:io";
 import "package:flutter/material.dart";
 import "package:health/health.dart";
 import "package:permission_handler/permission_handler.dart";
+import "package:life_pattern_tracker/utils/app_log.dart";
 
 /// Shows today’s steps and recent sleep from [Health Connect](https://health.google/health-connect-android/)
 /// when Samsung Health, Google Fit, Wear OS, Galaxy Watch, etc. sync into Health Connect.
@@ -106,7 +107,7 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
         _sleepHoursLastNight = sleepHours > 0 ? sleepHours : null;
       });
     } catch (e, st) {
-      debugPrint("HealthConnectSummaryCard: $e\n$st");
+      AppLog.e("HealthConnectSummaryCard load failed", error: e, stackTrace: st);
       if (!mounted) return;
       setState(() {
         _loading = false;

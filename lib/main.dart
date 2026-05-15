@@ -15,14 +15,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox<dynamic>("app_settings");
-  if (kDebugMode) {
-    const compileKey = String.fromEnvironment("GEMINI_API_KEY");
-    debugPrint(
-      "GEMINI_API_KEY compile-time length: ${compileKey.length} "
-      "(0 = start app with .\\run_dev.ps1, launch config, or VS Code Flutter args so "
-      "--dart-define-from-file=.env is applied)",
-    );
-  }
   runApp(const ProviderScope(child: LifePatternApp()));
 }
 

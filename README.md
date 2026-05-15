@@ -2,6 +2,10 @@
 
 Flutter application for tracking app usage, insights, and productivity patterns.
 
+## Full setup guide (MongoDB + API + app + Gemini)
+
+**See [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md)** for step-by-step instructions for new developers.
+
 ## Quick Start
 
 Install dependencies:
@@ -50,7 +54,7 @@ Run setup + analyze + tests in Docker:
 
 ## MongoDB / cloud backup
 
-See `docs/MONGODB.md` for the Node API in `server/` and how to set `API_BASE_URL` in `.env`.
+See [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md) (setup) and [docs/MONGODB.md](docs/MONGODB.md) (schema & security).
 
 ## Full Guide
 

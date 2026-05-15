@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/utils/app_log.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/ai_scope.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
@@ -172,8 +173,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         _messages.add(_ChatMessage(text: response, isUser: false));
       });
     } catch (e, st) {
-      debugPrint("Gemini chat failed: $e");
-      debugPrintStack(stackTrace: st);
+      AppLog.e("Gemini chat failed", error: e, stackTrace: st);
       if (!mounted) return;
       final errorText = e.toString();
       final lower = errorText.toLowerCase();

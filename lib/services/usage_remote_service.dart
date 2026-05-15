@@ -1,8 +1,10 @@
 import "dart:convert";
 
-import "package:flutter/foundation.dart";
 import "package:http/http.dart" as http;
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
+import "package:life_pattern_tracker/services/auth_remote_service.dart";
+import "package:life_pattern_tracker/services/auth_token_store.dart";
+import "package:life_pattern_tracker/utils/app_log.dart";
 
 /// Syncs usage JSON to a small REST API backed by MongoDB (see `server/` and docs/MONGODB.md).
 ///
@@ -21,6 +23,8 @@ class UsageRemoteService {
     required DailyUsageModel day,
   }) async {
     if (!isConfigured) return;
+    final token = AuthTokenStore.read();
+    if (token.isEmpty) return;
     final base = _baseUrl.trim().replaceAll(RegExp(r"/$"), "");
     final uid = Uri.encodeComponent(userEmail);
     final dayKey = Uri.encodeComponent(_dayKey(day));
@@ -28,15 +32,14 @@ class UsageRemoteService {
     try {
       final res = await http.put(
         url,
-        headers: {"Content-Type": "application/json; charset=utf-8"},
+        headers: AuthRemoteService.authHeaders(token),
         body: jsonEncode(day.toMap()),
       );
       if (res.statusCode >= 400) {
-        debugPrint("UsageRemoteService: PUT ${res.statusCode} ${res.body}");
+        AppLog.e("UsageRemoteService: PUT ${res.statusCode}", error: res.body);
       }
     } catch (e, st) {
-      debugPrint("UsageRemoteService: $e");
-      debugPrintStack(stackTrace: st);
+      AppLog.e("UsageRemoteService upload failed", error: e, stackTrace: st);
     }
   }
 
