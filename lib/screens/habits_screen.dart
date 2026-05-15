@@ -1,5 +1,7 @@
 import "package:flutter/material.dart";
 
+import "../widgets/health_connect_summary_card.dart";
+
 /// Accent palette aligned with common habit-tracker UIs (green + mood pink).
 const Color _kHabitGreen = Color(0xFF2ECC71);
 const Color _kHabitGreenDeep = Color(0xFF27AE60);
@@ -71,6 +73,8 @@ class HabitsScreen extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
+        const SizedBox(height: 16),
+        const HealthConnectSummaryCard(),
         const SizedBox(height: 20),
         const _WeeklyProgressBanner(progress: 0.71),
         const SizedBox(height: 28),

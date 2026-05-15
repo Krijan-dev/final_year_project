@@ -38,17 +38,37 @@ API_BASE_URL=http://10.0.2.2:3000
 
 Then **fully restart** the app (e.g. `run_dev.bat` / `run_dev.ps1`) so `String.fromEnvironment` picks up the new define.
 
-## 4) What gets saved
+## 4) What gets saved in MongoDB
 
-After **Refresh** pulls today’s usage and saves to Hive, the app **PUT**s the same payload to:
+### `users` collection
+
+| Field | Description |
+|--------|-------------|
+| `email` | Normalized lowercase email (unique) |
+| `passwordHash` | `salt:sha256hex` — never store plain passwords |
+| `sessionToken` | Issued on login/register (Bearer token for API calls) |
+
+Auth endpoints:
+
+- `POST /api/v1/auth/register` — body `{ "email", "password" }` → `{ ok, email, token }`
+- `POST /api/v1/auth/login` — body `{ "email", "password" }` → `{ ok, email, token }`
+- `POST /api/v1/auth/logout` — header `Authorization: Bearer <token>`
+
+When `API_BASE_URL` is set, the Flutter app uses these routes instead of Hive-only passwords.
+
+### `usagedays` collection (per user email)
+
+After **Refresh** (signed in + valid session token), the app **PUT**s:
 
 `PUT /api/v1/users/<url-encoded-email>/usage-days/<YYYY-MM-DD>`
 
-Body = `DailyUsageModel.toMap()` JSON.
+Header: `Authorization: Bearer <token>` (must match the logged-in user).
 
-Optional listing (for a future “restore from cloud” feature):
+Body = `DailyUsageModel.toMap()` JSON (`date`, `totalScreenTime`, `hourlyUsageMinutes`, `apps[]`).
 
-`GET /api/v1/users/<email>/usage-days` → JSON array of day maps.
+Listing:
+
+`GET /api/v1/users/<email>/usage-days` → JSON array of day maps (same Bearer token).
 
 ## 5) Security notes (important for a real project)
 
