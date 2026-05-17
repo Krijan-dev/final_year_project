@@ -1,42 +1,42 @@
 # MongoDB + API for saving usage data
 
-The Flutter app **does not** talk to MongoDB directly (your connection string would be exposed in the APK).  
-Instead, a small **Node.js + Express + Mongoose** service in `server/` stores JSON documents in MongoDB, and the app **HTTP PUT**s each day after a successful refresh.
+The Flutter app **does not** talk to MongoDB directly.  
+A **Node.js + Express + Mongoose** service in `server/` stores data in MongoDB; the app syncs via HTTP.
 
 ## 1) Create a MongoDB database
 
 1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas).
-2. Database user + password, allow network access (for dev: `0.0.0.0/0` or your IP).
-3. Copy the **connection string** (SRV), e.g.  
-   `mongodb+srv://USER:PASS@cluster0.xxxxx.mongodb.net/life_pattern?retryWrites=true&w=majority`
+2. Database user + password; allow network access (dev: `0.0.0.0/0` or your IP).
+3. Atlas → **Connect** → **Drivers** → copy the connection string.
+4. Paste into **`server/.env`** as `MONGODB_URI=` (see `server/.env.example`).  
+   **Do not commit** `server/.env`.
+
+URL-encode special characters in passwords if needed.
 
 ## 2) Run the API locally
 
 ```powershell
 cd server
 copy .env.example .env
-# Edit .env — set MONGODB_URI=...
+# Edit .env — paste MONGODB_URI from Atlas only into this file
 npm install
 npm start
 ```
 
-You should see: `MongoDB connected` and `API listening on http://localhost:3000`.
-
-Test: open `http://localhost:3000/health` in a browser.
+Test: http://localhost:3000/health → `{"ok":true,"mongo":true}`
 
 ## 3) Point the Flutter app at the API
 
-Add to your project root **`.env`** (same file as `GEMINI_API_KEY`):
+In project root **`.env`**:
 
 ```env
 API_BASE_URL=http://10.0.2.2:3000
 ```
 
-- **Android emulator** → host machine: use `http://10.0.2.2:PORT` (not `localhost`).
-- **Physical device** on same Wi‑Fi: use your PC’s LAN IP, e.g. `http://192.168.1.50:3000`.
-- **Release / production**: deploy the API (Railway, Render, Fly.io, etc.) and set `API_BASE_URL` to the HTTPS URL.
+- Emulator: `http://10.0.2.2:PORT`
+- Physical device: `http://YOUR_PC_LAN_IP:PORT`
 
-Then **fully restart** the app (e.g. `run_dev.bat` / `run_dev.ps1`) so `String.fromEnvironment` picks up the new define.
+Fully restart the app after changing `.env`.
 
 ## 4) What gets saved in MongoDB
 
@@ -45,33 +45,21 @@ Then **fully restart** the app (e.g. `run_dev.bat` / `run_dev.ps1`) so `String.f
 | Field | Description |
 |--------|-------------|
 | `email` | Normalized lowercase email (unique) |
-| `passwordHash` | `salt:sha256hex` — never store plain passwords |
-| `sessionToken` | Issued on login/register (Bearer token for API calls) |
+| `passwordHash` | `salt:sha256hex` — never plain passwords |
+| `sessionToken` | Bearer token for API calls |
 
-Auth endpoints:
+Endpoints: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`
 
-- `POST /api/v1/auth/register` — body `{ "email", "password" }` → `{ ok, email, token }`
-- `POST /api/v1/auth/login` — body `{ "email", "password" }` → `{ ok, email, token }`
-- `POST /api/v1/auth/logout` — header `Authorization: Bearer <token>`
+### `usagedays` collection (per email)
 
-When `API_BASE_URL` is set, the Flutter app uses these routes instead of Hive-only passwords.
+`PUT /api/v1/users/<email>/usage-days/<YYYY-MM-DD>` with `Authorization: Bearer <token>`
 
-### `usagedays` collection (per user email)
+Body = daily usage JSON (`date`, `totalScreenTime`, `hourlyUsageMinutes`, `apps[]`).
 
-After **Refresh** (signed in + valid session token), the app **PUT**s:
+`GET /api/v1/users/<email>/usage-days` — list days for that user.
 
-`PUT /api/v1/users/<url-encoded-email>/usage-days/<YYYY-MM-DD>`
+## 5) Security notes
 
-Header: `Authorization: Bearer <token>` (must match the logged-in user).
-
-Body = `DailyUsageModel.toMap()` JSON (`date`, `totalScreenTime`, `hourlyUsageMinutes`, `apps[]`).
-
-Listing:
-
-`GET /api/v1/users/<email>/usage-days` → JSON array of day maps (same Bearer token).
-
-## 5) Security notes (important for a real project)
-
-- Add **authentication** (JWT, session cookies, or API keys) on the server before public deployment.
-- Do **not** commit `server/.env` or root `.env` with secrets.
-- Use **HTTPS** in production and restrict CORS to your app origins.
+- Do **not** commit `server/.env` or root `.env`.
+- Use **HTTPS** in production.
+- See [SECURITY_GITHUB_ALERTS.md](SECURITY_GITHUB_ALERTS.md) if GitHub flags secrets.
