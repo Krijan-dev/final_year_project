@@ -125,6 +125,19 @@ class UsageNotifier extends StateNotifier<UsageState> {
     final score = 100 - min(90, socialMins ~/ 3);
     return score.clamp(0, 100).toInt();
   }
+
+  /// Daily screen-time goal for progress bar (8 hours).
+  static const int dailyScreenTimeGoalMinutes = 480;
+
+  double screenTimeProgressFraction() {
+    final minutes = state.today?.totalScreenTime ?? 0;
+    if (dailyScreenTimeGoalMinutes <= 0) return 0;
+    return (minutes / dailyScreenTimeGoalMinutes).clamp(0.0, 1.0);
+  }
+
+  double productivityProgressFraction() => productivityScore() / 100;
+
+  double focusProgressFraction() => focusScore() / 100;
 }
 
 final usageProvider = StateNotifierProvider<UsageNotifier, UsageState>((ref) {

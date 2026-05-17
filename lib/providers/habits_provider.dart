@@ -21,6 +21,16 @@ class HabitsNotifier extends StateNotifier<HabitsState> {
   /// Same pattern as scores derived from today’s data — best streak across configured habits.
   int bestStreakDays() => WeeklyHabit.bestStreakAmong(state.habits);
 
+  double weeklyCompletionProgressFraction() => weeklyCompletionPercent() / 100;
+
+  /// Progress toward a 30-day streak goal.
+  static const int streakGoalDays = 30;
+
+  double bestStreakProgressFraction() {
+    if (streakGoalDays <= 0) return 0;
+    return (bestStreakDays() / streakGoalDays).clamp(0.0, 1.0);
+  }
+
   /// Placeholder for pull-to-refresh / future persistence (mirrors usage refresh hook).
   Future<void> refresh() async {
     // Re-seed sample rows when storage is added, replace with Hive read.

@@ -2,16 +2,14 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/models/weekly_habit.dart";
 import "package:life_pattern_tracker/providers/habits_provider.dart";
-import "package:life_pattern_tracker/widgets/summary_card.dart";
 
-/// Dashboard habits block: [SummaryCard] metrics (like Productivity / Focus) + [Card] list (like Top 5 apps).
+/// Weekly habit list (summary metrics live on [DashboardScreen]).
 class ThisWeeksHabitsSection extends ConsumerWidget {
   const ThisWeeksHabitsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final habitsState = ref.watch(habitsProvider);
-    final habitsNotifier = ref.read(habitsProvider.notifier);
     final habits = habitsState.habits;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -22,30 +20,6 @@ class ThisWeeksHabitsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: SummaryCard(
-                title: "Habit completion",
-                value: "${habitsNotifier.weeklyCompletionPercent()}%",
-                subtitle: "this week",
-                icon: Icons.calendar_view_week_rounded,
-                color: Colors.teal,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SummaryCard(
-                title: "Best streak",
-                value: "${habitsNotifier.bestStreakDays()}",
-                subtitle: "days",
-                icon: Icons.local_fire_department_outlined,
-                color: Colors.deepOrange,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),

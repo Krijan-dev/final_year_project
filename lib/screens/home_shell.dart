@@ -2,12 +2,12 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
-import "package:life_pattern_tracker/screens/ai_suggestions_screen.dart";
 import "package:life_pattern_tracker/screens/apps_screen.dart";
-import "package:life_pattern_tracker/screens/charts_screen.dart";
 import "package:life_pattern_tracker/screens/chatbot_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
+import "package:life_pattern_tracker/screens/habit_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -26,17 +26,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final sessionEmail = ref.watch(authProvider.select((a) => a.email));
     const pages = [
       DashboardScreen(),
-      ChartsScreen(),
+      HabitScreen(),
       ChatbotScreen(),
-      AiSuggestionsScreen(),
       InsightsScreen(),
       AppsScreen(),
     ];
     const titles = [
       "Dashboard",
-      "Charts",
-      "Chatbot",
-      "AI Suggestions",
+      "Habit",
+      "Chat",
       "Insights",
       "Apps",
     ];
@@ -49,8 +47,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       });
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         title: Text(
           titles[safeIndex],
           style: const TextStyle(fontWeight: FontWeight.w700),
@@ -87,17 +90,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-                  Theme.of(context).scaffoldBackgroundColor,
-                ],
-              ),
-            ),
+          AppGradientBackground(
+            dark: isDark,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 280),
               child: KeyedSubtree(key: ValueKey(safeIndex), child: pages[safeIndex]),
@@ -107,13 +101,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.black26,
         selectedIndex: safeIndex,
         onDestinationSelected: (index) => setState(() => _index = index),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
-          NavigationDestination(icon: Icon(Icons.bar_chart_outlined), label: "Charts"),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: "Chatbot"),
-          NavigationDestination(icon: Icon(Icons.psychology_outlined), label: "AI"),
+          NavigationDestination(icon: Icon(Icons.check_circle_outline), label: "Habit"),
+          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: "Chat"),
           NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
           NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
         ],
