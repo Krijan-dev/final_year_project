@@ -5,8 +5,9 @@
 `life_pattern_tracker` is a Flutter app that helps you monitor digital behavior:
 - Dashboard views for daily and trend insights
 - Charts for hourly and weekly usage
-- App usage breakdown
-- Chatbot and AI suggestion pages for productivity guidance
+- **Habits** page (weekly banner, week grid, mood strip, today's log — sample data for now)
+- Top app usage on the dashboard (no separate Apps tab)
+- Floating assistant chat (opens from the round chat button) and AI suggestion page
 
 ## 2) Run the app normally (without Docker)
 
@@ -24,6 +25,8 @@ flutter pub get
 ```powershell
 flutter run
 ```
+
+For Gemini AI without typing the key each time, use a `.env` file — see **section 6**.
 
 ## 3) Run setup/check commands with Docker
 
@@ -60,3 +63,75 @@ docker compose run --rm flutter flutter test
 - This Docker setup is best for dependency setup, static analysis, and tests.
 - Building and running Android APKs fully inside Docker is possible but requires a larger Android SDK/emulator setup and is intentionally not included here.
 - For day-to-day app execution on device/emulator, use local Flutter + Android tooling.
+
+## 6) Gemini API key (`.env` file — recommended)
+
+Flutter can load compile-time defines from a **`.env`** file in the project root (do not commit it).
+
+### One-time setup
+
+1. Copy the example file:
+
+```powershell
+copy .env.example .env
+```
+
+2. Edit `.env` and set your key (no quotes needed):
+
+```env
+GEMINI_API_KEY=your_actual_key_here
+```
+
+### Run / build without typing the key each time
+
+```powershell
+.\run_dev.ps1
+```
+
+If PowerShell blocks the script (**not digitally signed** / execution policy), use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_dev.ps1
+```
+
+Or run **`run_dev.bat`** from Command Prompt (or double‑click it in Explorer).
+
+Or:
+
+```powershell
+flutter run --dart-define-from-file=.env
+```
+
+Release APK:
+
+```powershell
+.\build_apk_with_env.ps1
+```
+
+Or use **`build_apk_with_env.bat`** if `.ps1` scripts are blocked.
+
+Or:
+
+```powershell
+flutter build apk --dart-define-from-file=.env
+```
+
+### VS Code / Cursor
+
+Use the launch configuration **"life_pattern_tracker (with .env)"** (requires `.env` to exist).
+
+### Older / manual override
+
+```powershell
+flutter run --dart-define=GEMINI_API_KEY=your_actual_key_here
+```
+
+Notes:
+
+- Never commit `.env` or real API keys (`.env` is listed in `.gitignore`).
+- If the key is missing, the app shows fallback messages/suggestions instead of AI responses.
+- **`String.fromEnvironment` is fixed when the app process starts.** Creating or editing `.env` then using **hot reload only** does not update the key. Do a **full stop** of the run session, then start again with `.\run_dev.ps1` or `--dart-define-from-file=.env`.
+- **Cursor / VS Code:** This repo includes `.vscode/settings.json` so **Run / Debug** passes `--dart-define-from-file=.env` from the project root. If you added it recently, **reload the window** or restart the IDE once, then stop the app and run again.
+- **`.env` format:** use `GEMINI_API_KEY=yourkey` with **no space** after `=`. A leading space in the value can prevent the define from loading correctly in some setups.
+- **Debug workaround:** Account menu → **Paste Gemini key (debug)** stores the key in Hive on the device; that path **does** update after save without recompiling, and survives hot reload.
+- **MongoDB backup:** optional `API_BASE_URL` in the same `.env` file syncs each refreshed day to your API — see `docs/MONGODB.md`.

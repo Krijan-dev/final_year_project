@@ -1,5 +1,6 @@
 import "dart:io";
 
+import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_flutter/hive_flutter.dart";
@@ -13,6 +14,7 @@ import "package:life_pattern_tracker/screens/welcome_screen.dart";
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  await Hive.openBox<dynamic>("app_settings");
   runApp(const ProviderScope(child: LifePatternApp()));
 }
 

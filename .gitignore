@@ -1,3 +1,6 @@
+# Local secrets (copy from .env.example)
+.env
+
 # Miscellaneous
 *.class
 *.log
@@ -43,3 +46,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets — never commit (copy from *.example)
+.env
+server/.env
+android/app/google-services.json
+
+# Node API dependencies
+server/node_modules/
