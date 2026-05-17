@@ -1,56 +1,33 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:life_pattern_tracker/providers/habits_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/summary_card.dart";
-import "package:life_pattern_tracker/widgets/this_weeks_habits_card.dart";
 import "package:life_pattern_tracker/widgets/usage_bar_chart.dart";
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
-  static Widget _metricRow({required List<Widget> children}) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final usageState = ref.watch(usageProvider);
     final notifier = ref.read(usageProvider.notifier);
-    final habitsNotifier = ref.read(habitsProvider.notifier);
     final today = usageState.today;
-    final screenMinutes = today?.totalScreenTime ?? 0;
 
     return RefreshIndicator(
-      onRefresh: () async {
-        await Future.wait<void>([
-          notifier.refreshToday(),
-          habitsNotifier.refresh(),
-        ]);
-      },
+      onRefresh: notifier.refreshToday,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
           SummaryCard(
             title: "Today Screen Time",
-            value: formatMinutes(screenMinutes),
-            subtitle: today == null
-                ? "No data yet"
-                : "${formatDateShort(today.date)} · goal ${formatMinutes(UsageNotifier.dailyScreenTimeGoalMinutes)}",
+            value: formatMinutes(today?.totalScreenTime ?? 0),
+            subtitle: today == null ? "No data yet" : formatDateShort(today.date),
             icon: Icons.hourglass_top_rounded,
-            color: Colors.red,
-            progress: notifier.screenTimeProgressFraction(),
-            uniformHeight: true,
           ),
           const SizedBox(height: 12),
-          _metricRow(
+          Row(
             children: [
               Expanded(
                 child: SummaryCard(
@@ -59,8 +36,6 @@ class DashboardScreen extends ConsumerWidget {
                   subtitle: "out of 100",
                   icon: Icons.track_changes_outlined,
                   color: Colors.green,
-                  progress: notifier.productivityProgressFraction(),
-                  uniformHeight: true,
                 ),
               ),
               const SizedBox(width: 12),
@@ -71,42 +46,10 @@ class DashboardScreen extends ConsumerWidget {
                   subtitle: "out of 100",
                   icon: Icons.center_focus_strong,
                   color: Colors.deepPurple,
-                  progress: notifier.focusProgressFraction(),
-                  uniformHeight: true,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _metricRow(
-            children: [
-              Expanded(
-                child: SummaryCard(
-                  title: "Habit completion",
-                  value: "${habitsNotifier.weeklyCompletionPercent()}%",
-                  subtitle: "this week",
-                  icon: Icons.calendar_view_week_rounded,
-                  color: Colors.teal,
-                  progress: habitsNotifier.weeklyCompletionProgressFraction(),
-                  uniformHeight: true,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SummaryCard(
-                  title: "Best streak",
-                  value: "${habitsNotifier.bestStreakDays()}",
-                  subtitle: "of ${HabitsNotifier.streakGoalDays} day goal",
-                  icon: Icons.local_fire_department_outlined,
-                  color: Colors.deepOrange,
-                  progress: habitsNotifier.bestStreakProgressFraction(),
-                  uniformHeight: true,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const ThisWeeksHabitsSection(),
           const SizedBox(height: 12),
           Card(
             child: Padding(
