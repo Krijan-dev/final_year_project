@@ -8,13 +8,13 @@ import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
-import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 
-class MainActivity : FlutterFragmentActivity() {
+class MainActivity : FlutterActivity() {
     private val channelName = "life_pattern_tracker/usage"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

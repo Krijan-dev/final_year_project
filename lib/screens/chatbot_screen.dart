@@ -1,9 +1,14 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:life_pattern_tracker/utils/app_log.dart";
+import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
+import "package:life_pattern_tracker/providers/habits_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
-import "package:life_pattern_tracker/services/ai_scope.dart";
-import "package:life_pattern_tracker/services/gemini_service.dart";
+import "package:life_pattern_tracker/utils/formatters.dart";
+
+const Color _kChatGreen = Color(0xFF22C55E);
+const Color _kChatGreenDark = Color(0xFF16A34A);
+const Color _kAssistantBubble = Color(0xFFFFFFFF);
+const Color _kInputFill = Color(0xFFF3F4F6);
 
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
@@ -14,190 +19,348 @@ class ChatbotScreen extends ConsumerStatefulWidget {
 
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<_ChatMessage> _messages = [
-    _ChatMessage(
-      text: GeminiService.isConfigured
-          ? "Hi! I help with habits, screen time, sleep, focus, and productivity using your app data. "
-              "Off-topic messages are answered locally (no API call)."
-          : "Hi! Add GEMINI_API_KEY with --dart-define to enable AI chat.",
+    const _ChatMessage(
+      text:
+          "Hi! I'm your Life Pattern assistant. Ask about screen time, focus, productivity, or your weekly habits.",
       isUser: false,
     ),
   ];
-  bool _loading = false;
+
+  static const List<String> _quickPrompts = [
+    "How is my focus today?",
+    "Today's screen time",
+    "Habit progress this week",
+    "Tips to reduce usage",
+  ];
 
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: GeminiService.isConfigured
-                      ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  GeminiService.isConfigured ? "AI: Connected" : "AI: Key missing",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: GeminiService.isConfigured
-                        ? Theme.of(context).colorScheme.onPrimaryContainer
-                        : Theme.of(context).colorScheme.onErrorContainer,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _messages.add(const _ChatMessage(text: AiScope.helpReply, isUser: false));
-                  });
-                },
-                child: const Text("Help"),
-              ),
-            ],
-          ),
+    final base = Theme.of(context);
+    return Theme(
+      data: base.copyWith(
+        scaffoldBackgroundColor: Colors.transparent,
+        colorScheme: base.colorScheme.copyWith(
+          primary: _kChatGreen,
+          onPrimary: Colors.white,
+          primaryContainer: const Color(0xFFECFDF5),
+          surfaceContainerHighest: _kInputFill,
         ),
+      ),
+      child: Column(
+      children: [
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: _messages.length,
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            itemCount: _messages.length + 1,
             itemBuilder: (context, index) {
-              final msg = _messages[index];
-              final align = msg.isUser ? Alignment.centerRight : Alignment.centerLeft;
-              final color = msg.isUser
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : Theme.of(context).colorScheme.surfaceContainerHighest;
-              return Align(
-                alignment: align,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.all(12),
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(msg.text),
-                ),
-              );
+              if (index == 0) {
+                return const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: _AssistantHeader(),
+                );
+              }
+              final msg = _messages[index - 1];
+              return _ChatBubble(message: msg);
             },
           ),
         ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    decoration: const InputDecoration(
-                      hintText: "Screen time, habits, sleep, focus…",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: _loading ? null : _sendMessage,
-                  icon: _loading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                ),
-              ],
-            ),
-          ),
+        _QuickPromptsBar(
+          prompts: _quickPrompts,
+          onTap: (prompt) {
+            _controller.text = prompt;
+            _sendMessage();
+          },
+        ),
+        _ChatInputBar(
+          controller: _controller,
+          onSend: _sendMessage,
         ),
       ],
+      ),
     );
   }
 
-  Future<void> _sendMessage() async {
+  void _sendMessage() {
     final text = _controller.text.trim();
-    if (text.isEmpty || _loading) return;
+    if (text.isEmpty) return;
 
-    final scope = AiScope.classify(text);
-    if (scope == AiScopeDecision.empty) return;
+    final usage = ref.read(usageProvider);
+    final usageNotifier = ref.read(usageProvider.notifier);
+    final habitsNotifier = ref.read(habitsProvider.notifier);
+    final habitTracker = ref.read(habitTrackerProvider);
+
+    final response = _botReply(
+      text: text,
+      dailyMinutes: usage.today?.totalScreenTime ?? 0,
+      averageMinutes: usageNotifier.averageDailyMinutes(),
+      focusScore: usageNotifier.focusScore(),
+      productivityScore: usageNotifier.productivityScore(),
+      weeklyHabitPercent: habitsNotifier.weeklyCompletionPercent(),
+      habitTrackerPercent: habitTracker.weeklyProgressPercent,
+    );
 
     setState(() {
       _messages.add(_ChatMessage(text: text, isUser: true));
+      _messages.add(_ChatMessage(text: response, isUser: false));
     });
     _controller.clear();
+    _scrollToBottom();
+  }
 
-    final localReply = switch (scope) {
-      AiScopeDecision.greeting => AiScope.greetingReply,
-      AiScopeDecision.help => AiScope.helpReply,
-      AiScopeDecision.offTopic => AiScope.offTopicReply,
-      AiScopeDecision.empty => null,
-      AiScopeDecision.allowed => null,
-    };
-    if (localReply != null) {
-      setState(() => _messages.add(_ChatMessage(text: localReply, isUser: false)));
-      return;
+  String _botReply({
+    required String text,
+    required int dailyMinutes,
+    required int averageMinutes,
+    required int focusScore,
+    required int productivityScore,
+    required int weeklyHabitPercent,
+    required int habitTrackerPercent,
+  }) {
+    final q = text.toLowerCase();
+
+    if (q.contains("habit")) {
+      return "Your habit completion is about $weeklyHabitPercent% on the dashboard "
+          "and $habitTrackerPercent% on the Habit tab this week. "
+          "Open the Habit tab to mark daily check-ins.";
     }
+    if (q.contains("focus")) {
+      return "Your focus score is $focusScore/100. "
+          "Try a 25-minute focus block with notifications off, then take a 5-minute break.";
+    }
+    if (q.contains("product") || q.contains("score")) {
+      return "Your productivity score is $productivityScore/100. "
+          "Opening productive apps first each hour can help improve it.";
+    }
+    if (q.contains("tip") || q.contains("reduce") || q.contains("less")) {
+      return "To reduce screen time: set app limits, schedule phone-free meals, "
+          "and check Insights for personalized recommendations.";
+    }
+    if (q.contains("today") || q.contains("usage") || q.contains("screen")) {
+      final diff = dailyMinutes - averageMinutes;
+      final compare = diff > 0
+          ? "${formatMinutes(diff.abs())} above"
+          : diff < 0
+              ? "${formatMinutes(diff.abs())} below"
+              : "in line with";
+      return "Today you've used ${formatMinutes(dailyMinutes)} — that's $compare your average "
+          "of ${formatMinutes(averageMinutes)}.";
+    }
+    if (q.contains("hello") || q.contains("hi")) {
+      return "Hello! Ask me about focus, screen time, habits, or tips to build healthier routines.";
+    }
+    return "I can help with screen time, focus scores, habits, and wellness tips. "
+        "Try: \"How is my focus today?\" or \"Habit progress this week\".";
+  }
+}
 
-    final state = ref.read(usageProvider);
-    final notifier = ref.read(usageProvider.notifier);
+class _AssistantHeader extends StatelessWidget {
+  const _AssistantHeader();
 
-    setState(() => _loading = true);
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Card(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: _kChatGreen.withValues(alpha: 0.15)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _kChatGreen.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.smart_toy_outlined, color: _kChatGreen, size: 28),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Life Pattern Assistant",
+                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Powered by your usage & habit data",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-    try {
-      final response = await GeminiService.chatReply(
-        userPrompt: text,
-        todayMinutes: state.today?.totalScreenTime ?? 0,
-        averageMinutes: notifier.averageDailyMinutes(),
-        focusScore: notifier.focusScore(),
-        productivityScore: notifier.productivityScore(),
-      );
-      if (!mounted) return;
-      setState(() {
-        _messages.add(_ChatMessage(text: response, isUser: false));
-      });
-    } catch (e, st) {
-      AppLog.e("Gemini chat failed", error: e, stackTrace: st);
-      if (!mounted) return;
-      final errorText = e.toString();
-      final lower = errorText.toLowerCase();
-      final isQuotaError = lower.contains("quota") ||
-          lower.contains("rate limit") ||
-          lower.contains("exceeded your current quota");
-      setState(() {
-        _messages.add(
-          _ChatMessage(
-            text: isQuotaError
-                ? "Gemini quota exceeded right now. Please enable billing/increase quota, or wait and try again. "
-                    "Quick fallback tip: do one 25-minute focus block, then review your top distracting app."
-                : "AI error: $errorText",
-            isUser: false,
+class _ChatBubble extends StatelessWidget {
+  const _ChatBubble({required this.message});
+
+  final _ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final isUser = message.isUser;
+
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
+        decoration: BoxDecoration(
+          color: isUser ? _kChatGreen : _kAssistantBubble,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
           ),
-        );
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
-      }
-    }
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          message.text,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: isUser ? Colors.white : cs.onSurface,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickPromptsBar extends StatelessWidget {
+  const _QuickPromptsBar({
+    required this.prompts,
+    required this.onTap,
+  });
+
+  final List<String> prompts;
+  final void Function(String prompt) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: prompts.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          return ActionChip(
+            label: Text(
+              prompts[index],
+              style: const TextStyle(fontSize: 12, color: _kChatGreenDark),
+            ),
+            backgroundColor: const Color(0xFFECFDF5),
+            side: const BorderSide(color: Color(0xFFD1FAE5)),
+            onPressed: () => onTap(prompts[index]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ChatInputBar extends StatelessWidget {
+  const _ChatInputBar({
+    required this.controller,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                decoration: InputDecoration(
+                  hintText: "Ask about usage, focus, or habits…",
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Material(
+              color: _kChatGreen,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                onTap: onSend,
+                borderRadius: BorderRadius.circular(24),
+                splashColor: _kChatGreenDark.withValues(alpha: 0.3),
+                child: const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
