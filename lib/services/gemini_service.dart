@@ -1,5 +1,6 @@
 import "package:google_generative_ai/google_generative_ai.dart";
 import "package:life_pattern_tracker/services/ai_scope.dart";
+import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/services/gemini_key_store.dart";
 
 class GeminiService {
@@ -76,6 +77,10 @@ Keep replies under 80 words. Mention at most one metric when relevant.
     required int focusScore,
     required int productivityScore,
   }) async {
+    if (CrisisSupport.isCrisisRelated(userPrompt)) {
+      return CrisisSupport.reply;
+    }
+
     if (!AiScope.allowsApiCall(userPrompt)) {
       return AiScope.offTopicReply;
     }
@@ -139,5 +144,85 @@ Output format:
     }
 
     return lines.take(4).toList();
+  }
+
+  /// Short daily coach blurb for the dashboard (AI).
+  static Future<String> generateDashboardInsight({
+    required int todayMinutes,
+    required int averageMinutes,
+    required int focusScore,
+    required int productivityScore,
+    required int habitCompletionPercent,
+    required int bestStreakDays,
+    required double? moodAverage,
+    required String ruleContext,
+  }) async {
+    if (!isConfigured) {
+      return "Add a Gemini API key to get an AI daily coach summary.";
+    }
+
+    final moodLine = moodAverage != null
+        ? "Average mood this week: ${moodAverage.toStringAsFixed(1)}/10."
+        : "No mood logged this week yet.";
+
+    final prompt = """
+Write ONE short dashboard coach paragraph (2-3 sentences, max 55 words) for this user.
+Use ONLY the metrics below. Be specific, encouraging, and actionable.
+Do not use markdown or bullet points.
+
+Metrics:
+- Today screen minutes: $todayMinutes
+- Average daily screen minutes: $averageMinutes
+- Focus score (0-100): $focusScore
+- Productivity score (0-100): $productivityScore
+- Habit completion this week (%): $habitCompletionPercent
+- Best current habit streak (days): $bestStreakDays
+- $moodLine
+- Calculated context: $ruleContext
+""";
+
+    final text = await _generateWithFallback(prompt);
+    return text.isNotEmpty ? text : "Keep tracking habits and screen time to spot patterns.";
+  }
+
+  /// AI insight tips for the Insights tab (2–3 items).
+  static Future<List<String>> generateInsightTips({
+    required int todayMinutes,
+    required int averageMinutes,
+    required int focusScore,
+    required int productivityScore,
+    required int habitCompletionPercent,
+    required double? moodAverage,
+    required String ruleSummary,
+  }) async {
+    if (!isConfigured) return [];
+
+    final moodLine = moodAverage != null
+        ? "Mood average: ${moodAverage.toStringAsFixed(1)}/10."
+        : "No mood logged this week.";
+
+    final prompt = """
+Create exactly 2 personalized wellness insights for this user.
+Use ONLY the metrics below. Each line must use format: TITLE|DESCRIPTION
+- TITLE max 6 words, DESCRIPTION max 22 words
+- no numbering, no markdown, no bullets
+
+Metrics:
+- Today screen minutes: $todayMinutes
+- Average daily minutes: $averageMinutes
+- Focus score: $focusScore
+- Productivity score: $productivityScore
+- Habit completion %: $habitCompletionPercent
+- $moodLine
+- Context: $ruleSummary
+""";
+
+    final raw = await _generateWithFallback(prompt);
+    return raw
+        .split("\n")
+        .map((e) => e.replaceFirst(RegExp(r"^\s*[-*]\s*"), "").trim())
+        .where((e) => e.isNotEmpty && e.contains("|"))
+        .take(3)
+        .toList();
   }
 }

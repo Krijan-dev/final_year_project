@@ -1,7 +1,6 @@
-import "dart:math";
-
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
+import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
 
@@ -107,27 +106,13 @@ class UsageNotifier extends StateNotifier<UsageState> {
     return (total / state.history.length).round();
   }
 
-  int productivityScore() {
-    final daily = state.today?.totalScreenTime ?? 0;
-    final score = 100 - (daily ~/ 6);
-    return score.clamp(0, 100).toInt();
-  }
+  int productivityScore() => DashboardMetricsService.productivityScoreForToday(state.today);
 
-  int focusScore() {
-    final apps = state.today?.appUsages ?? const [];
-    final socialMins = apps
-        .where((app) =>
-            app.category.toLowerCase().contains("social") ||
-            app.appName.toLowerCase().contains("instagram") ||
-            app.appName.toLowerCase().contains("facebook") ||
-            app.appName.toLowerCase().contains("tiktok"))
-        .fold<int>(0, (sum, app) => sum + app.usageTime);
-    final score = 100 - min(90, socialMins ~/ 3);
-    return score.clamp(0, 100).toInt();
-  }
+  int focusScore() => DashboardMetricsService.focusScoreForToday(state.today);
 
   /// Daily screen-time goal for progress bar (8 hours).
-  static const int dailyScreenTimeGoalMinutes = 480;
+  static const int dailyScreenTimeGoalMinutes =
+      DashboardMetricsService.dailyScreenTimeGoalMinutes;
 
   double screenTimeProgressFraction() {
     final minutes = state.today?.totalScreenTime ?? 0;

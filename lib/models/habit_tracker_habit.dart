@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:life_pattern_tracker/utils/week_calendar.dart";
 
 /// Habit with a Mon–Sun completion grid for the Habit tab.
 class HabitTrackerHabit {
@@ -21,13 +22,19 @@ class HabitTrackerHabit {
 
   int get percent => ((completedDays / 7) * 100).round().clamp(0, 100);
 
-  static const List<String> dayLabels = [
-    "Mon",
-    "Tue",
-    "Wed",
-    "Thu",
-    "Fri",
-    "Sat",
-    "Sun",
-  ];
+  /// Consecutive completed days ending at today (or latest day in the week).
+  int currentStreak() {
+    final end = WeekCalendar.todayWeekIndex;
+    var streak = 0;
+    for (var i = end; i >= 0; i--) {
+      if (weekCompleted[i]) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  static List<String> weekDayLabels() => WeekCalendar.currentWeekDayLabels();
 }

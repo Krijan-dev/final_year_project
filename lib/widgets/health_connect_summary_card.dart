@@ -1,8 +1,8 @@
 import "dart:io";
 
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:health/health.dart";
-import "package:permission_handler/permission_handler.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 
 /// Shows today’s steps and recent sleep from [Health Connect](https://health.google/health-connect-android/)
@@ -45,15 +45,6 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
     });
 
     try {
-      final motion = await Permission.activityRecognition.request();
-      if (!motion.isGranted) {
-        setState(() {
-          _loading = false;
-          _error = "Allow physical activity access so step counts can be read.";
-        });
-        return;
-      }
-
       final health = Health();
       await health.configure();
 
@@ -61,7 +52,8 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
       if (sdk != HealthConnectSdkStatus.sdkAvailable) {
         setState(() {
           _loading = false;
-          _error = "Install or update Health Connect from the Play Store, then open this tab again.";
+          _error =
+              "Install or update Health Connect from the Play Store, then tap refresh.";
         });
         return;
       }
@@ -69,7 +61,15 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
       final reads = List<HealthDataAccess>.filled(_authTypes.length, HealthDataAccess.READ);
       final has = await health.hasPermissions(_authTypes, permissions: reads);
       if (has != true) {
-        await health.requestAuthorization(_authTypes, permissions: reads);
+        final granted = await health.requestAuthorization(_authTypes, permissions: reads);
+        if (!granted) {
+          setState(() {
+            _loading = false;
+            _error =
+                "Allow steps and sleep access in Health Connect, then tap refresh.";
+          });
+          return;
+        }
       }
 
       final now = DateTime.now();
@@ -111,9 +111,18 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = "Could not read Health Connect data. Grant permissions in system settings if needed.";
+        _error = _friendlyError(e);
       });
     }
+  }
+
+  static String _friendlyError(Object e) {
+    if (e is MissingPluginException) {
+      return "Health Connect needs a full rebuild. Stop the app, run "
+          "flutter clean, then flutter run again.";
+    }
+    return "Could not read Health Connect. Install Health Connect, grant "
+        "steps and sleep permissions, then tap refresh.";
   }
 
   @override
@@ -156,7 +165,7 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              "Steps and sleep sync from apps and watches that write to Health Connect (e.g. Samsung Health when supported).",
+              "Steps and sleep sync from apps and watches that write to Health Connect.",
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (_loading) ...[

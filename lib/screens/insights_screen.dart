@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/models/insight_models.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
+import "package:life_pattern_tracker/services/gemini_service.dart";
 
 const Color _kHealthGreen = Color(0xFF22C55E);
 const Color _kHealthGreenDark = Color(0xFF16A34A);
@@ -11,8 +12,9 @@ class InsightsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(insightsProvider);
+    final view = ref.watch(insightsProvider);
     final notifier = ref.read(insightsProvider.notifier);
+    final state = view.insights;
 
     return RefreshIndicator(
       onRefresh: notifier.refresh,
@@ -20,7 +22,8 @@ class InsightsScreen extends ConsumerWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          const _InsightsHeader(),
+          if (!view.ready) const LinearProgressIndicator(minHeight: 2),
+          _InsightsHeader(aiUsesGemini: view.aiUsesGemini),
           const SizedBox(height: 16),
           _HealthRiskScoreCard(
             label: state.healthRiskLabel,
@@ -34,25 +37,58 @@ class InsightsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _SectionTitle(
-            icon: Icons.auto_awesome,
-            iconColor: Color(0xFF7C3AED),
+            icon: Icons.analytics_outlined,
+            iconColor: Colors.teal,
             title: "Smart Recommendations",
+            badge: "Calculated",
           ),
           const SizedBox(height: 12),
-          ...state.recommendations.map(
-            (r) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _RecommendationCard(item: r),
+          if (state.recommendations.isEmpty)
+            const _EmptyInsightNote(message: "Pull down to refresh with usage and habit data.")
+          else
+            ...state.recommendations.map(
+              (r) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _RecommendationCard(item: r),
+              ),
             ),
-          ),
           const SizedBox(height: 8),
-          ...state.aiTips.map(
-            (tip) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _AiInsightCard(tip: tip),
+          _SectionTitle(
+            icon: Icons.auto_awesome,
+            iconColor: Color(0xFF7C3AED),
+            title: "AI Insights",
+            badge: view.aiUsesGemini
+                ? "Gemini"
+                : view.aiLoading
+                    ? "Loading…"
+                    : "Calculated",
+          ),
+          if (view.aiLoading) ...[
+            const SizedBox(height: 12),
+            const LinearProgressIndicator(minHeight: 3),
+          ],
+          const SizedBox(height: 12),
+          if (!view.aiLoading && state.aiTips.isEmpty)
+            _EmptyInsightNote(
+              message: GeminiService.isConfigured
+                  ? "No AI tips yet. Pull to refresh."
+                  : "Add GEMINI_API_KEY in .env for AI insights.",
+            )
+          else if (!view.aiLoading)
+            ...state.aiTips.map(
+              (tip) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _AiInsightCard(tip: tip),
+              ),
             ),
-          ),
           const SizedBox(height: 8),
+          _SectionTitle(
+            icon: Icons.trending_up,
+            iconColor: Color(0xFF2563EB),
+            title: "Weekly Trends",
+            badge: "Calculated",
+          ),
+          const SizedBox(height: 12),
           _WeeklyTrendsCard(trends: state.weeklyTrends),
         ],
       ),
@@ -60,8 +96,31 @@ class InsightsScreen extends ConsumerWidget {
   }
 }
 
+class _EmptyInsightNote extends StatelessWidget {
+  const _EmptyInsightNote({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          message,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+        ),
+      ),
+    );
+  }
+}
+
 class _InsightsHeader extends StatelessWidget {
-  const _InsightsHeader();
+  const _InsightsHeader({required this.aiUsesGemini});
+
+  final bool aiUsesGemini;
 
   @override
   Widget build(BuildContext context) {
@@ -70,12 +129,14 @@ class _InsightsHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "AI Insights",
+          "Insights",
           style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(
-          "Personalized recommendations for you",
+          aiUsesGemini
+              ? "Calculated scores plus personalized AI tips"
+              : "Scores and tips from your usage and habits",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -345,24 +406,34 @@ class _SectionTitle extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.title,
+    this.badge,
   });
 
   final IconData icon;
   final Color iconColor;
   final String title;
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Row(
       children: [
         Icon(icon, color: iconColor, size: 22),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
+        if (badge != null)
+          Text(
+            badge!,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
       ],
     );
   }
