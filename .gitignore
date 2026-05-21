@@ -52,3 +52,8 @@ android/app/google-services.json
 
 # Node API dependencies
 server/node_modules/
+
+# Next.js website (Vercel)
+website/node_modules/
+website/.next/
+website/.env.local
