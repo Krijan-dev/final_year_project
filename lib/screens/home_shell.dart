@@ -1,10 +1,11 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/screens/apps_screen.dart";
-import "package:life_pattern_tracker/screens/chatbot_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
+import "package:life_pattern_tracker/widgets/floating_chat_overlay.dart";
 import "package:life_pattern_tracker/screens/habit_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
@@ -27,14 +28,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     const pages = [
       DashboardScreen(),
       HabitScreen(),
-      ChatbotScreen(),
       InsightsScreen(),
       AppsScreen(),
     ];
     const titles = [
       "Dashboard",
       "Habit",
-      "Chat",
       "Insights",
       "Apps",
     ];
@@ -60,7 +59,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
         actions: [
           IconButton(
-            onPressed: () => notifier.refreshToday(),
+            onPressed: () async {
+              await Future.wait<void>([
+                notifier.refreshToday(),
+                ref.read(habitTrackerProvider.notifier).refresh(),
+              ]);
+            },
             icon: const Icon(Icons.refresh),
             tooltip: "Refresh",
           ),
@@ -98,6 +102,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ),
           ),
           if (state.syncing) const LinearProgressIndicator(minHeight: 2),
+          const FloatingChatOverlay(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -110,7 +115,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
           NavigationDestination(icon: Icon(Icons.check_circle_outline), label: "Habit"),
-          NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: "Chat"),
           NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
           NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
         ],

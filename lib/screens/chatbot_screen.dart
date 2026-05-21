@@ -1,8 +1,8 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
-import "package:life_pattern_tracker/providers/habits_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 
 const Color _kChatGreen = Color(0xFF22C55E);
@@ -11,7 +11,10 @@ const Color _kAssistantBubble = Color(0xFFFFFFFF);
 const Color _kInputFill = Color(0xFFF3F4F6);
 
 class ChatbotScreen extends ConsumerStatefulWidget {
-  const ChatbotScreen({super.key});
+  const ChatbotScreen({super.key, this.onClose});
+
+  /// When set, shows a compact popup header with a close control.
+  final VoidCallback? onClose;
 
   @override
   ConsumerState<ChatbotScreen> createState() => _ChatbotScreenState();
@@ -68,6 +71,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       ),
       child: Column(
       children: [
+        if (widget.onClose != null) _PopupChatHeader(onClose: widget.onClose!),
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
@@ -75,6 +79,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             itemCount: _messages.length + 1,
             itemBuilder: (context, index) {
               if (index == 0) {
+                if (widget.onClose != null) {
+                  return const SizedBox(height: 4);
+                }
                 return const Padding(
                   padding: EdgeInsets.only(bottom: 16),
                   child: _AssistantHeader(),
@@ -85,16 +92,24 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             },
           ),
         ),
-        _QuickPromptsBar(
-          prompts: _quickPrompts,
-          onTap: (prompt) {
-            _controller.text = prompt;
-            _sendMessage();
-          },
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: widget.onClose != null
+                ? const Color(0xFFF8FAFC)
+                : Colors.transparent,
+          ),
+          child: _QuickPromptsBar(
+            prompts: _quickPrompts,
+            onTap: (prompt) {
+              _controller.text = prompt;
+              _sendMessage();
+            },
+          ),
         ),
         _ChatInputBar(
           controller: _controller,
           onSend: _sendMessage,
+          compact: widget.onClose != null,
         ),
       ],
       ),
@@ -107,7 +122,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
     final usage = ref.read(usageProvider);
     final usageNotifier = ref.read(usageProvider.notifier);
-    final habitsNotifier = ref.read(habitsProvider.notifier);
     final habitTracker = ref.read(habitTrackerProvider);
 
     final response = _botReply(
@@ -116,8 +130,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       averageMinutes: usageNotifier.averageDailyMinutes(),
       focusScore: usageNotifier.focusScore(),
       productivityScore: usageNotifier.productivityScore(),
-      weeklyHabitPercent: habitsNotifier.weeklyCompletionPercent(),
+      weeklyHabitPercent: habitTracker.weeklyProgressPercent,
       habitTrackerPercent: habitTracker.weeklyProgressPercent,
+      moodAverage: habitTracker.averageMood,
+      logsToday: habitTracker.todayLogs.length,
     );
 
     setState(() {
@@ -136,13 +152,22 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     required int productivityScore,
     required int weeklyHabitPercent,
     required int habitTrackerPercent,
+    required double moodAverage,
+    required int logsToday,
   }) {
+    if (CrisisSupport.isCrisisRelated(text)) {
+      return CrisisSupport.reply;
+    }
+
     final q = text.toLowerCase();
 
     if (q.contains("habit")) {
-      return "Your habit completion is about $weeklyHabitPercent% on the dashboard "
-          "and $habitTrackerPercent% on the Habit tab this week. "
-          "Open the Habit tab to mark daily check-ins.";
+      final moodLine = moodAverage > 0
+          ? " Average mood this week: ${moodAverage.toStringAsFixed(1)}/10."
+          : "";
+      return "Your habit completion is $weeklyHabitPercent% this week "
+          "($logsToday activity logs today).$moodLine "
+          "Open the Habit tab to check off days or log sessions.";
     }
     if (q.contains("focus")) {
       return "Your focus score is $focusScore/100. "
@@ -171,6 +196,75 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     }
     return "I can help with screen time, focus scores, habits, and wellness tips. "
         "Try: \"How is my focus today?\" or \"Habit progress this week\".";
+  }
+}
+
+class _PopupChatHeader extends StatelessWidget {
+  const _PopupChatHeader({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_kChatGreen, _kChatGreenDark],
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            ),
+            child: const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Life Pattern Assistant",
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Ask about habits & screen time",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.88),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Material(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: onClose,
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 26),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -310,54 +404,88 @@ class _ChatInputBar extends StatelessWidget {
   const _ChatInputBar({
     required this.controller,
     required this.onSend,
+    this.compact = false,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                decoration: InputDecoration(
-                  hintText: "Ask about usage, focus, or habits…",
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: _kChatGreen.withValues(alpha: 0.12)),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12, 8, 12, compact ? 10 : 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: compact ? 3 : 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  decoration: InputDecoration(
+                    hintText: "Message…",
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: compact ? 13 : 14,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: compact ? 10 : 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: _kChatGreen, width: 1.5),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Material(
-              color: _kChatGreen,
-              borderRadius: BorderRadius.circular(24),
-              child: InkWell(
-                onTap: onSend,
-                borderRadius: BorderRadius.circular(24),
-                splashColor: _kChatGreenDark.withValues(alpha: 0.3),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Icon(Icons.send_rounded, color: Colors.white, size: 22),
+              const SizedBox(width: 8),
+              Material(
+                elevation: 2,
+                shadowColor: _kChatGreen.withValues(alpha: 0.4),
+                color: _kChatGreen,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: onSend,
+                  borderRadius: BorderRadius.circular(20),
+                  splashColor: _kChatGreenDark.withValues(alpha: 0.3),
+                  child: Padding(
+                    padding: EdgeInsets.all(compact ? 10 : 12),
+                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -82,3 +82,25 @@ class WeeklyTrendItem {
   bool get isPositive => changePercent > 0;
   bool get isNegative => changePercent < 0;
 }
+
+class InsightsState {
+  const InsightsState({
+    required this.healthRiskLabel,
+    required this.healthRiskScore,
+    required this.healthMetrics,
+    required this.overallWellnessScore,
+    required this.wellnessScores,
+    required this.recommendations,
+    required this.aiTips,
+    required this.weeklyTrends,
+  });
+
+  final String healthRiskLabel;
+  final int healthRiskScore;
+  final List<HealthRiskMetric> healthMetrics;
+  final int overallWellnessScore;
+  final List<WellnessScoreItem> wellnessScores;
+  final List<SmartRecommendation> recommendations;
+  final List<AiInsightTip> aiTips;
+  final List<WeeklyTrendItem> weeklyTrends;
+}
