@@ -53,7 +53,5 @@ android/app/google-services.json
 # Node API dependencies
 server/node_modules/
 
-# Next.js website (Vercel)
-website/node_modules/
-website/.next/
-website/.env.local
+# Website lives in separate repo (nested clone — do not commit in Flutter repo)
+LifePatternAI_Website/
