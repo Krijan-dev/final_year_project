@@ -52,3 +52,6 @@ android/app/google-services.json
 
 # Node API dependencies
 server/node_modules/
+
+# Website lives in separate repo (nested clone — do not commit in Flutter repo)
+LifePatternAI_Website/
