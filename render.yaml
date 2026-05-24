@@ -1,0 +1,15 @@
+# Render Blueprint — API lives in server/, not repo root.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: life-pattern-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: PORT
+        value: "3000"
