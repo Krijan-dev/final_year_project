@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { hashPassword, verifyPassword, newSessionToken } = require("./password");
+const { registerAdminRoutes } = require("./admin");
 
 const userSchema = new mongoose.Schema(
   {
@@ -102,6 +103,7 @@ async function main() {
     res.type("text/plain").send(
       "Life Pattern Tracker API is running.\n\n" +
         "Auth: POST /api/v1/auth/register  POST /api/v1/auth/login\n" +
+        "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
         "Health: GET /health",
     );
@@ -207,6 +209,8 @@ async function main() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  registerAdminRoutes(app, { User, UsageDay });
 
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, "0.0.0.0", () => {
