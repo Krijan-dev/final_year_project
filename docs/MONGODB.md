@@ -43,10 +43,11 @@ Fully restart the app after changing `.env`.
 When `API_BASE_URL` is set (e.g. your Render URL) and you **register or log in**, the app:
 
 1. Stores a **Bearer token** locally and uses it for API calls.
-2. **Uploads usage** after each refresh (today’s day + full history on sign-in).
-3. **Uploads habits/mood/logs** whenever you change the habit tracker (current week snapshot).
+2. **Downloads** your saved usage days and latest habit snapshot from MongoDB (restores data after a new phone or app reinstall).
+3. **Uploads usage** after each refresh (today’s day + full history).
+4. **Uploads habits/mood/logs** whenever you change the habit tracker (current week snapshot).
 
-Local Hive storage still works offline; cloud sync runs in the background when signed in.
+Local Hive storage still works offline. On sign-in, cloud data is pulled first, then local changes are pushed. Use **Account → Refresh all data** to pull again manually.
 
 ## 5) What gets saved in MongoDB
 

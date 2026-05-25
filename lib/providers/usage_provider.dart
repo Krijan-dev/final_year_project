@@ -92,6 +92,26 @@ class UsageNotifier extends StateNotifier<UsageState> {
     }
   }
 
+  /// Reload history from Hive after cloud restore (new phone / fresh install).
+  Future<void> reloadFromStorage() async {
+    final history = await _storageService.getAllDays();
+    final now = DateTime.now();
+    DailyUsageModel? today;
+    for (final day in history) {
+      if (day.date.year == now.year &&
+          day.date.month == now.month &&
+          day.date.day == now.day) {
+        today = day;
+        break;
+      }
+    }
+    state = state.copyWith(
+      history: history,
+      today: today ?? state.today,
+      clearError: true,
+    );
+  }
+
   Future<void> refreshToday() async {
     state = state.copyWith(syncing: true, clearError: true);
     try {

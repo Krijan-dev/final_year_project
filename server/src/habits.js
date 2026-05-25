@@ -37,6 +37,24 @@ function registerHabitRoutes(app, { HabitSnapshot, requireAuth, requireAdmin, as
     }
   });
 
+  app.get("/api/v1/users/:userId/habit-snapshots/latest", requireAuth, async (req, res) => {
+    try {
+      if (!assertOwnUser(req, res)) return;
+      const userId = req.authEmail;
+      const row = await HabitSnapshot.findOne({ userId })
+        .sort({ updatedAt: -1 })
+        .lean()
+        .exec();
+      if (!row || !row.data) {
+        return res.json({ ok: true, snapshot: null });
+      }
+      res.json({ ok: true, snapshot: row.data, weekKey: row.weekKey });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get("/api/v1/users/:userId/habit-snapshot/:weekKey", requireAuth, async (req, res) => {
     try {
       if (!assertOwnUser(req, res)) return;

@@ -6,6 +6,7 @@ import "package:life_pattern_tracker/providers/theme_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/api_config.dart";
 import "package:life_pattern_tracker/services/auth_remote_service.dart";
+import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 import "package:life_pattern_tracker/services/auth_token_store.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 
@@ -30,10 +31,12 @@ class AccountScreen extends ConsumerWidget {
     final apiReady = ApiConfig.isConfigured;
 
     Future<void> refreshAll() async {
-      await Future.wait<void>([
-        ref.read(usageProvider.notifier).refreshToday(),
-        ref.read(habitTrackerProvider.notifier).refresh(),
-      ]);
+      await CloudSyncService.syncOnSignIn();
+      await ref.read(usageProvider.notifier).reloadFromStorage();
+      await ref.read(habitTrackerProvider.notifier).refresh();
+      if (ref.read(usageProvider).hasPermission) {
+        await ref.read(usageProvider.notifier).refreshToday();
+      }
     }
 
     return RefreshIndicator(
@@ -97,7 +100,7 @@ class AccountScreen extends ConsumerWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: Icon(Icons.refresh, color: theme.colorScheme.primary),
                 title: const Text("Refresh all data"),
-                subtitle: const Text("Screen time, habits, and dashboard metrics"),
+                subtitle: const Text("Restore from cloud, then refresh screen time and habits"),
                 trailing: usage.syncing
                     ? const SizedBox(
                         width: 22,
