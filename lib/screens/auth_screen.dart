@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/screens/forgot_password_screen.dart";
 import "package:life_pattern_tracker/services/auth_remote_service.dart";
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -267,7 +268,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ForgotPasswordScreen(
+                                initialEmail: _loginEmail.text,
+                              ),
+                            ),
+                          );
+                        },
+                  child: const Text("Forgot password?"),
+                ),
+              ),
+              const SizedBox(height: 8),
               FilledButton(
                 onPressed: _busy ? null : _submitLogin,
                 child: _busy

@@ -56,4 +56,37 @@ async function sendVerificationEmail({ to, code }) {
   }
 }
 
-module.exports = { sendVerificationEmail, isSmtpConfigured };
+async function sendPasswordResetEmail({ to, code }) {
+  const from = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@lifepattern.app";
+  const subject = "Reset your Life Pattern Tracker password";
+  const text =
+    `Your password reset code is: ${code}\n\n` +
+    "Enter this code in the app to choose a new password. It expires in 15 minutes.\n\n" +
+    "If you did not request this, you can ignore this email.";
+  const html =
+    `<div style="font-family:sans-serif;max-width:480px">` +
+    `<h2 style="color:#16a34a">Life Pattern Tracker</h2>` +
+    `<p>Your password reset code is:</p>` +
+    `<p style="font-size:28px;font-weight:bold;letter-spacing:4px;color:#16a34a">${code}</p>` +
+    `<p style="color:#64748b;font-size:14px">This code expires in 15 minutes. If you did not request a reset, ignore this email.</p>` +
+    `</div>`;
+
+  if (!isSmtpConfigured()) {
+    console.log(`[email] SMTP not configured — password reset code for ${to}: ${code}`);
+    return { sent: false, devLogged: true };
+  }
+
+  const transport = createTransport();
+  try {
+    await transport.sendMail({ from, to, subject, text, html });
+    return { sent: true, devLogged: false };
+  } catch (err) {
+    console.error("[email] SMTP send failed:", err.message);
+    throw new Error(
+      "Could not send email. Check SMTP_USER/SMTP_PASS (use a Gmail App Password, not your normal login password).",
+    );
+  }
+}
+
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, isSmtpConfigured };
+

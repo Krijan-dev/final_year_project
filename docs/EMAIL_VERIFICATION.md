@@ -125,3 +125,5 @@ If you skip SMTP and set `EMAIL_DEV_EXPOSE_CODE=1`, codes appear in server logs 
 - `POST /api/v1/auth/send-verification` — `{ "email": "..." }`
 - `POST /api/v1/auth/verify-email` — `{ "email": "...", "code": "123456" }`
 - `POST /api/v1/auth/register` — `{ "email", "password", "verificationToken" }`
+
+Password reset: see [PASSWORD_RESET.md](PASSWORD_RESET.md).
