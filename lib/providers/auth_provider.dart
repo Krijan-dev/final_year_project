@@ -1,5 +1,8 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/services/auth_remote_service.dart";
 import "package:life_pattern_tracker/services/auth_storage_service.dart";
+import "package:life_pattern_tracker/services/auth_token_store.dart";
+import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 
 final authStorageServiceProvider = Provider<AuthStorageService>((ref) {
   return AuthStorageService();
@@ -37,7 +40,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _load() async {
     final email = await _storage.getSessionEmail();
+    if (AuthRemoteService.isConfigured) {
+      final token = AuthTokenStore.read();
+      if (email != null && token.isEmpty) {
+        await _storage.logout();
+        state = const AuthState(ready: true);
+        return;
+      }
+    }
     state = AuthState(ready: true, email: email);
+    if (email != null && AuthRemoteService.isConfigured) {
+      Future.microtask(CloudSyncService.pushAll);
+    }
   }
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
@@ -57,6 +71,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (password.length < 6) {
       return "Password must be at least 6 characters.";
     }
+
+    if (AuthRemoteService.isConfigured) {
+      final result = await AuthRemoteService.register(
+        email: normalized,
+        password: password,
+      );
+      if (!result.ok) return result.error;
+      await AuthTokenStore.write(result.token);
+      await _storage.setSessionEmail(result.email);
+      state = state.copyWith(email: result.email);
+      Future.microtask(CloudSyncService.pushAll);
+      return null;
+    }
+
     final err = await _storage.register(normalized, password);
     if (err == null) {
       state = state.copyWith(email: normalized);
@@ -72,6 +100,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (password.isEmpty) {
       return "Enter your password.";
     }
+
+    if (AuthRemoteService.isConfigured) {
+      final result = await AuthRemoteService.login(
+        email: normalized,
+        password: password,
+      );
+      if (!result.ok) return result.error;
+      await AuthTokenStore.write(result.token);
+      await _storage.setSessionEmail(result.email);
+      state = state.copyWith(email: result.email);
+      Future.microtask(CloudSyncService.pushAll);
+      return null;
+    }
+
     final err = await _storage.login(normalized, password);
     if (err == null) {
       state = state.copyWith(email: normalized);
@@ -80,6 +122,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    if (AuthRemoteService.isConfigured) {
+      final token = AuthTokenStore.read();
+      await AuthRemoteService.logout(token: token);
+      await AuthTokenStore.write(null);
+    }
     await _storage.logout();
     state = state.copyWith(clearEmail: true);
   }

@@ -7,6 +7,9 @@ import "package:life_pattern_tracker/models/habit_tracker_habit.dart";
 import "package:life_pattern_tracker/models/mood_day.dart";
 import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
+import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/services/auth_storage_service.dart";
+import "package:life_pattern_tracker/services/habit_remote_service.dart";
 import "package:life_pattern_tracker/services/habit_tracker_storage_service.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
@@ -82,11 +85,17 @@ class HabitTrackerState {
 }
 
 class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
-  HabitTrackerNotifier(this._storage) : super(HabitTrackerState.loading()) {
+  HabitTrackerNotifier(
+    this._storage,
+    this._authStorage,
+    this._habitRemote,
+  ) : super(HabitTrackerState.loading()) {
     _load();
   }
 
   final HabitTrackerStorageService _storage;
+  final AuthStorageService _authStorage;
+  final HabitRemoteService _habitRemote;
 
   static const Map<String, String> _logToHabitId = {
     "meditation": "meditate",
@@ -135,6 +144,25 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
       habits: state.habits,
       moodDays: state.moodDays,
       logs: state.logs,
+    );
+    await _syncToCloud();
+  }
+
+  Future<void> _syncToCloud() async {
+    if (!_habitRemote.isConfigured) return;
+    final email = await _authStorage.getSessionEmail();
+    if (email == null) return;
+    final raw = await _storage.loadRaw();
+    if (raw == null) return;
+    await _habitRemote.uploadSnapshot(
+      userEmail: email,
+      weekKey: state.weekKey,
+      payload: {
+        "weekKey": state.weekKey,
+        "habits": raw["habits"] ?? [],
+        "moodDays": raw["moodDays"] ?? [],
+        "logs": raw["logs"] ?? [],
+      },
     );
   }
 
@@ -428,7 +456,13 @@ final habitTrackerStorageProvider = Provider<HabitTrackerStorageService>((ref) {
   return HabitTrackerStorageService();
 });
 
+final habitRemoteServiceProvider = Provider<HabitRemoteService>((ref) => HabitRemoteService());
+
 final habitTrackerProvider =
     StateNotifierProvider<HabitTrackerNotifier, HabitTrackerState>((ref) {
-  return HabitTrackerNotifier(ref.read(habitTrackerStorageProvider));
+  return HabitTrackerNotifier(
+    ref.read(habitTrackerStorageProvider),
+    ref.read(authStorageServiceProvider),
+    ref.read(habitRemoteServiceProvider),
+  );
 });
