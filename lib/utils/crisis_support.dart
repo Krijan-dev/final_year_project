@@ -36,6 +36,10 @@ abstract final class CrisisSupport {
     RegExp(r"not\s+worth\s+living", caseSensitive: false),
     RegExp(r"can'?t\s+go\s+on\s+anymore", caseSensitive: false),
     RegExp(r"cannot\s+go\s+on\s+anymore", caseSensitive: false),
+    RegExp(r"\bdying\b", caseSensitive: false),
+    RegExp(r"\bkill\s+me\b", caseSensitive: false),
+    RegExp(r"\bi\s+should\s+die\b", caseSensitive: false),
+    RegExp(r"\bwant\s+to\s+disappear\b", caseSensitive: false),
   ];
 
   static bool isCrisisRelated(String raw) {

@@ -8,6 +8,7 @@ const { hashPassword, verifyPassword, newSessionToken } = require("./password");
 const { registerAdminRoutes, requireAdmin } = require("./admin");
 const { registerHabitRoutes } = require("./habits");
 const { registerSupportRoutes } = require("./support");
+const { registerCrisisRoutes } = require("./crisis");
 
 const userSchema = new mongoose.Schema(
   {
@@ -74,6 +75,18 @@ const supportMessageSchema = new mongoose.Schema(
 
 const SupportConversation = mongoose.model("SupportConversation", supportConversationSchema);
 const SupportMessage = mongoose.model("SupportMessage", supportMessageSchema);
+
+const crisisFlagSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    source: { type: String, enum: ["ai_chat", "support_chat"], required: true },
+    messagePreview: { type: String, required: true },
+    status: { type: String, enum: ["open", "reviewed"], default: "open" },
+  },
+  { timestamps: true },
+);
+crisisFlagSchema.index({ status: 1, createdAt: -1 });
+const CrisisFlag = mongoose.model("CrisisFlag", crisisFlagSchema);
 
 function normalizeEmail(raw) {
   return String(raw || "")
@@ -155,6 +168,7 @@ async function main() {
         "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>\n" +
         "Support chat: POST/GET /api/v1/support/... (Bearer user token)\n" +
         "Admin support: GET/POST /api/v1/admin/support/conversations/...\n" +
+        "Crisis flags: POST /api/v1/crisis-flags  GET /api/v1/admin/crisis-flags\n" +
         "Health: GET /health",
     );
   });
@@ -267,11 +281,18 @@ async function main() {
     assertOwnUser,
   });
 
+  const { createFlag: createCrisisFlag } = registerCrisisRoutes(app, {
+    CrisisFlag,
+    requireAuth,
+    requireAdmin,
+  });
+
   registerSupportRoutes(app, {
     SupportConversation,
     SupportMessage,
     requireAuth,
     requireAdmin,
+    createCrisisFlag,
   });
 
   registerAdminRoutes(app, { User, UsageDay, HabitSnapshot });

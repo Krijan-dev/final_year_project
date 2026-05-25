@@ -6,6 +6,7 @@ import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/api_config.dart";
+import "package:life_pattern_tracker/services/crisis_flag_remote_service.dart";
 import "package:life_pattern_tracker/services/support_remote_service.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
@@ -45,6 +46,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   String? _supportStatus;
   bool _humanLoading = false;
   String? _humanError;
+  bool _humanSessionActive = false;
 
   static const List<String> _quickPrompts = [
     "How is my focus today?",
@@ -129,6 +131,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       _supportStatus = conv.status;
       _humanLoading = false;
       _lastPollAt = null;
+      _humanSessionActive = true;
     });
     await _refreshHumanMessages(full: true);
     _pollTimer?.cancel();
@@ -137,6 +140,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   void _backToAssistant() {
     _pollTimer?.cancel();
+    _humanSessionActive = false;
     setState(() {
       _mode = _ChatMode.assistant;
       _supportStatus = null;
@@ -154,9 +158,35 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     });
   }
 
+  void _onChatEndedByAdmin() {
+    _pollTimer?.cancel();
+    _humanSessionActive = false;
+    setState(() {
+      _mode = _ChatMode.assistant;
+      _supportStatus = null;
+      _humanError = null;
+      _lastPollAt = null;
+      _messages
+        ..clear()
+        ..add(
+          const _ChatMessage(
+            text:
+                "Hi! I'm your Life Pattern assistant. Ask about screen time, focus, productivity, or your weekly habits.",
+            isUser: false,
+          ),
+        );
+    });
+    _showSnack("Support ended this chat. Your messages were cleared.");
+  }
+
   Future<void> _refreshHumanMessages({bool full = false}) async {
     final result = await _support.fetchMessages(since: full ? null : _lastPollAt);
     if (!mounted || _mode != _ChatMode.human) return;
+
+    if (_humanSessionActive && result.conversation == null) {
+      _onChatEndedByAdmin();
+      return;
+    }
 
     final incoming = result.messages;
     if (incoming.isEmpty && result.conversation == null) return;
@@ -312,6 +342,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
     if (_mode == _ChatMode.human) {
       if (CrisisSupport.isCrisisRelated(text)) {
+        unawaited(
+          CrisisFlagRemoteService.reportIfNeeded(text: text, source: "support_chat"),
+        );
         setState(() {
           _messages.add(_ChatMessage(text: text, isUser: true));
           _messages.add(
@@ -326,11 +359,17 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       return;
     }
 
+    if (CrisisSupport.isCrisisRelated(text)) {
+      unawaited(CrisisFlagRemoteService.reportIfNeeded(text: text, source: "ai_chat"));
+    }
+
     final usage = ref.read(usageProvider);
     final usageNotifier = ref.read(usageProvider.notifier);
     final habitTracker = ref.read(habitTrackerProvider);
 
-    final response = _botReply(
+    final response = CrisisSupport.isCrisisRelated(text)
+        ? CrisisSupport.reply
+        : _botReply(
       text: text,
       dailyMinutes: usage.today?.totalScreenTime ?? 0,
       averageMinutes: usageNotifier.averageDailyMinutes(),
@@ -361,10 +400,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     required double moodAverage,
     required int logsToday,
   }) {
-    if (CrisisSupport.isCrisisRelated(text)) {
-      return CrisisSupport.reply;
-    }
-
     final q = text.toLowerCase();
 
     if (q.contains("habit")) {

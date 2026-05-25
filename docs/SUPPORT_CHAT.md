@@ -30,6 +30,10 @@ Redeploy Vercel after pushing.
 - `supportconversations` — one open thread per user (`waiting` / `active` / `closed`)
 - `supportmessages` — `sender`: `user` | `admin`
 
-## End chat
+## Delete chat
 
-Admin clicks **End chat** → conversation `closed`. User can start a new thread by tapping **Chat with a real person** again.
+Admin clicks **Delete chat** → conversation and all messages are **removed from MongoDB**. The user’s app clears the chat on the next poll (within ~3 seconds) and returns to the AI assistant.
+
+## Safety alerts (crisis flags)
+
+When a **signed-in** user sends crisis-related text (suicide, self-harm, wanting to die, etc.) in the **AI assistant** or **support chat**, the app reports it to `POST /api/v1/crisis-flags`. Admins review them under **Safety alerts** on the website (`/alerts`).
