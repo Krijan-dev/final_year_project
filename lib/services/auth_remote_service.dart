@@ -132,6 +132,88 @@ class AuthRemoteService {
     );
   }
 
+  static Future<SendVerificationResult> sendForgotPasswordCode({
+    required String email,
+  }) async {
+    if (!isConfigured) {
+      return const SendVerificationResult(error: "API_BASE_URL is not configured.");
+    }
+    try {
+      final res = await http.post(
+        _uri("/api/v1/auth/forgot-password"),
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+        body: jsonEncode({"email": email.trim().toLowerCase()}),
+      );
+      final body = _decode(res.body);
+      if (res.statusCode >= 400) {
+        final serverError = body?["error"] as String?;
+        if (res.statusCode == 404) {
+          return const SendVerificationResult(
+            error:
+                "Password reset is not on the live API yet. Deploy the latest server/ code to Render.",
+          );
+        }
+        return SendVerificationResult(
+          error: serverError ?? "Could not send reset code (${res.statusCode})",
+        );
+      }
+      return SendVerificationResult(
+        ok: true,
+        devCode: body?["devCode"] as String?,
+        devHint: body?["devHint"] as String?,
+      );
+    } catch (e, st) {
+      AppLog.e("sendForgotPasswordCode failed", error: e, stackTrace: st);
+      return const SendVerificationResult(error: "Cannot reach API. Is the server running?");
+    }
+  }
+
+  static Future<VerifyEmailResult> verifyResetCode({
+    required String email,
+    required String code,
+  }) async {
+    if (!isConfigured) {
+      return const VerifyEmailResult(error: "API_BASE_URL is not configured.");
+    }
+    try {
+      final res = await http.post(
+        _uri("/api/v1/auth/verify-reset-code"),
+        headers: {"Content-Type": "application/json; charset=utf-8"},
+        body: jsonEncode({
+          "email": email.trim().toLowerCase(),
+          "code": code.trim(),
+        }),
+      );
+      final body = _decode(res.body);
+      if (res.statusCode >= 400) {
+        return VerifyEmailResult(error: body?["error"] as String? ?? "Verification failed");
+      }
+      final token = body?["resetToken"] as String?;
+      if (token == null || token.isEmpty) {
+        return const VerifyEmailResult(error: "Invalid server response.");
+      }
+      return VerifyEmailResult(ok: true, verificationToken: token);
+    } catch (e, st) {
+      AppLog.e("verifyResetCode failed", error: e, stackTrace: st);
+      return const VerifyEmailResult(error: "Cannot reach API. Is the server running?");
+    }
+  }
+
+  static Future<AuthRemoteResult> resetPassword({
+    required String email,
+    required String password,
+    required String resetToken,
+  }) async {
+    return _auth(
+      path: "/api/v1/auth/reset-password",
+      body: {
+        "email": email.trim().toLowerCase(),
+        "password": password,
+        "resetToken": resetToken,
+      },
+    );
+  }
+
   static Future<AuthRemoteResult> login({
     required String email,
     required String password,

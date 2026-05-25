@@ -13,6 +13,7 @@ const {
   registerEmailVerifyRoutes,
   assertEmailVerifiedForRegister,
 } = require("./email_verify");
+const { registerPasswordResetRoutes } = require("./password_reset");
 
 const userSchema = new mongoose.Schema(
   {
@@ -40,6 +41,22 @@ const emailVerificationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 const EmailVerification = mongoose.model("EmailVerification", emailVerificationSchema);
+
+const passwordResetSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    codeHash: { type: String, default: null },
+    codeExpiresAt: { type: Date, default: null },
+    lastSentAt: { type: Date, default: null },
+    sendWindowStart: { type: Date, default: null },
+    sendCountInWindow: { type: Number, default: 0 },
+    verified: { type: Boolean, default: false },
+    resetToken: { type: String, default: null, index: true, sparse: true },
+    tokenExpiresAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 
 const usageDaySchema = new mongoose.Schema(
   {
@@ -184,6 +201,7 @@ async function main() {
     res.type("text/plain").send(
       "Life Pattern Tracker API is running.\n\n" +
         "Auth: POST /api/v1/auth/send-verification  verify-email  register  login\n" +
+        "      forgot-password  verify-reset-code  reset-password\n" +
         "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
         "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>\n" +
@@ -200,6 +218,13 @@ async function main() {
 
   registerEmailVerifyRoutes(app, {
     EmailVerification,
+    User,
+    normalizeEmail,
+    isValidEmail,
+  });
+
+  registerPasswordResetRoutes(app, {
+    PasswordReset,
     User,
     normalizeEmail,
     isValidEmail,
