@@ -8,4 +8,25 @@ if (-not (Test-Path $envFile)) {
     exit 1
 }
 
-flutter run "--dart-define-from-file=$envFile" @args
+# Only pass app keys to Flutter. Full .env has SMTP/MongoDB with spaces/comments that
+# break --dart-define-from-file (splits into invalid extra CLI args → black screen on launch).
+$flutterKeys = @("GEMINI_API_KEY", "API_BASE_URL")
+$flutterEnvFile = Join-Path $PSScriptRoot "flutter.env"
+$out = New-Object System.Collections.Generic.List[string]
+foreach ($line in Get-Content $envFile -Encoding UTF8) {
+    if ($line -match '^\s*#' -or $line -match '^\s*$') { continue }
+    if ($line -match '^\s*([^=]+)=(.*)$') {
+        $key = $Matches[1].Trim()
+        if ($flutterKeys -contains $key) {
+            $out.Add("$key=$($Matches[2].Trim())")
+        }
+    }
+}
+if ($out.Count -eq 0) {
+    Write-Host "No GEMINI_API_KEY or API_BASE_URL in .env" -ForegroundColor Yellow
+    exit 1
+}
+$out | Set-Content -Path $flutterEnvFile -Encoding utf8
+Write-Host "Using flutter.env ($($out.Count) keys); SMTP/MongoDB are not passed to Flutter." -ForegroundColor DarkGray
+
+& flutter run --dart-define-from-file="$flutterEnvFile" @args

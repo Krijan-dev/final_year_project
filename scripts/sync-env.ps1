@@ -72,6 +72,9 @@ if (Test-Path $serverDir) {
     )
     if ($env["ADMIN_EMAIL"]) { $serverLines += "ADMIN_EMAIL=$($env['ADMIN_EMAIL'])" }
     if ($env["ADMIN_PASSWORD"]) { $serverLines += "ADMIN_PASSWORD=$($env['ADMIN_PASSWORD'])" }
+    foreach ($key in @("SMTP_HOST","SMTP_PORT","SMTP_SECURE","SMTP_USER","SMTP_PASS","SMTP_FROM","EMAIL_DEV_EXPOSE_CODE")) {
+        if ($env[$key]) { $serverLines += "$key=$($env[$key])" }
+    }
     if ($mongo) {
         $serverLines += "MONGODB_URI=$mongo"
     } else {

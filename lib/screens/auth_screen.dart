@@ -1,6 +1,8 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/services/auth_remote_service.dart";
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -17,9 +19,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   final _regEmail = TextEditingController();
   final _regPassword = TextEditingController();
   final _regConfirm = TextEditingController();
+  final _regCode = TextEditingController();
   final _loginForm = GlobalKey<FormState>();
   final _regForm = GlobalKey<FormState>();
   bool _busy = false;
+  int _regStep = 0;
+  String? _verificationToken;
+  bool _codeSent = false;
   bool _obscureLogin = true;
   bool _obscureReg = true;
   bool _obscureConfirm = true;
@@ -38,7 +44,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     _regEmail.dispose();
     _regPassword.dispose();
     _regConfirm.dispose();
+    _regCode.dispose();
     super.dispose();
+  }
+
+  void _resetRegisterFlow() {
+    setState(() {
+      _regStep = 0;
+      _verificationToken = null;
+      _codeSent = false;
+      _regCode.clear();
+    });
   }
 
   Future<void> _submitLogin() async {
@@ -59,6 +75,65 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
   }
 
+  Future<void> _sendVerificationCode() async {
+    if (!(_regForm.currentState?.validate() ?? false)) return;
+    if (!AuthRemoteService.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Sign-up requires the cloud API. Set API_BASE_URL in .env.")),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final result = await ref.read(authProvider.notifier).sendVerificationCodeWithDev(
+          _regEmail.text,
+        );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (result.error == null) {
+        _codeSent = true;
+        _regStep = 1;
+      }
+    });
+    if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error!)));
+      return;
+    }
+    var msg = "Verification code sent. Check your inbox (and spam).";
+    if (result.devCode != null) {
+      msg = "Dev mode: your code is ${result.devCode}";
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _verifyCode() async {
+    final code = _regCode.text.trim();
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter the 6-digit code from your email.")),
+      );
+      return;
+    }
+    setState(() => _busy = true);
+    final result = await ref.read(authProvider.notifier).verifyEmailCode(
+          _regEmail.text,
+          code,
+        );
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error!)));
+      return;
+    }
+    setState(() {
+      _verificationToken = result.verificationToken;
+      _regStep = 2;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Email verified. Choose a password.")),
+    );
+  }
+
   Future<void> _submitRegister() async {
     if (!(_regForm.currentState?.validate() ?? false)) return;
     if (_regPassword.text != _regConfirm.text) {
@@ -71,6 +146,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final err = await ref.read(authProvider.notifier).register(
           _regEmail.text,
           _regPassword.text,
+          verificationToken: _verificationToken,
         );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -115,6 +191,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   const SizedBox(height: 24),
                   TabBar(
                     controller: _tabs,
+                    onTap: (_) => _resetRegisterFlow(),
                     tabs: const [
                       Tab(text: "Log in"),
                       Tab(text: "Sign up"),
@@ -209,6 +286,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   }
 
   Widget _buildRegisterCard(BuildContext context) {
+    final useCloudVerify = AuthRemoteService.isConfigured;
+    final stepLabels = ["Email", "Verify", "Password"];
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -217,77 +297,193 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _regEmail,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
+              if (useCloudVerify) ...[
+                Row(
+                  children: [
+                    for (var i = 0; i < stepLabels.length; i++) ...[
+                      if (i > 0)
+                        Expanded(
+                          child: Container(
+                            height: 2,
+                            color: i <= _regStep
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor: i <= _regStep
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                        child: Text(
+                          "${i + 1}",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: i <= _regStep
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                validator: (v) {
-                  final e = v?.trim() ?? "";
-                  if (!AuthNotifier.isValidEmail(e)) {
-                    return "Enter a valid email";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _regPassword,
-                obscureText: _obscureReg,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: "Password (min. 6 characters)",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _obscureReg = !_obscureReg),
-                    icon: Icon(_obscureReg ? Icons.visibility_off : Icons.visibility),
+                const SizedBox(height: 8),
+                Text(
+                  stepLabels[_regStep.clamp(0, 2)],
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              if (!useCloudVerify || _regStep == 0) ...[
+                TextFormField(
+                  controller: _regEmail,
+                  enabled: !_codeSent || !useCloudVerify,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    border: OutlineInputBorder(),
+                    helperText: "We will send a 6-digit code to verify this address",
+                  ),
+                  validator: (v) {
+                    final e = v?.trim() ?? "";
+                    if (!AuthNotifier.isValidEmail(e)) {
+                      return "Enter a valid email";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (useCloudVerify)
+                  FilledButton(
+                    onPressed: _busy ? null : _sendVerificationCode,
+                    child: _busy
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_codeSent ? "Resend code" : "Send verification code"),
+                  ),
+              ],
+              if (useCloudVerify && _regStep == 1) ...[
+                Text(
+                  "Code sent to ${_regEmail.text.trim()}",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _regCode,
+                  keyboardType: TextInputType.number,
+                  maxLength: 6,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: "Verification code",
+                    border: OutlineInputBorder(),
+                    counterText: "",
                   ),
                 ),
-                validator: (v) {
-                  if (v == null || v.length < 6) {
-                    return "At least 6 characters";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _regConfirm,
-                obscureText: _obscureConfirm,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) {
-                  if (!_busy) _submitRegister();
-                },
-                decoration: InputDecoration(
-                  labelText: "Confirm password",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    onPressed: () =>
-                        setState(() => _obscureConfirm = !_obscureConfirm),
-                    icon: Icon(
-                        _obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                  ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _busy ? null : _verifyCode,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text("Verify email"),
                 ),
-                validator: (v) {
-                  if (v != _regPassword.text) return "Does not match password";
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: _busy ? null : _submitRegister,
-                child: _busy
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text("Create account"),
-              ),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() {
+                            _regStep = 0;
+                            _codeSent = false;
+                          }),
+                  child: const Text("Change email"),
+                ),
+              ],
+              if (!useCloudVerify || _regStep == 2) ...[
+                if (useCloudVerify) ...[
+                  Row(
+                    children: [
+                      Icon(Icons.verified_user, color: Theme.of(context).colorScheme.primary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Email verified",
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TextFormField(
+                  controller: _regPassword,
+                  obscureText: _obscureReg,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: "Password (min. 6 characters)",
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _obscureReg = !_obscureReg),
+                      icon: Icon(_obscureReg ? Icons.visibility_off : Icons.visibility),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.length < 6) {
+                      return "At least 6 characters";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _regConfirm,
+                  obscureText: _obscureConfirm,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) {
+                    if (!_busy) _submitRegister();
+                  },
+                  decoration: InputDecoration(
+                    labelText: "Confirm password",
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => _obscureConfirm = !_obscureConfirm),
+                      icon: Icon(
+                          _obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v != _regPassword.text) return "Does not match password";
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: _busy ? null : _submitRegister,
+                  child: _busy
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text("Create account"),
+                ),
+              ],
             ],
           ),
         ),

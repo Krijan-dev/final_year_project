@@ -16,9 +16,13 @@ import "package:life_pattern_tracker/theme/app_colors.dart";
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await dotenv.load(fileName: ".env");
+    await dotenv.load(fileName: "flutter.env");
   } catch (_) {
-    // Use --dart-define-from-file=.env if the asset is missing.
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (_) {
+      // Use run_dev.ps1 or --dart-define-from-file=flutter.env
+    }
   }
   await Hive.initFlutter();
   await Hive.openBox<dynamic>(kAppSettingsBoxName);
