@@ -146,4 +146,5 @@ function registerAdminRoutes(app, { User, UsageDay }) {
 module.exports = {
   registerAdminRoutes,
   isAdminConfigured,
+  requireAdmin,
 };

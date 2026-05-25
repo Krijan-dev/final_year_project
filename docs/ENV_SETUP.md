@@ -11,7 +11,7 @@ Keep secrets in the **project root** `.env` (gitignored). Run sync when values c
 | Variable | Used by |
 |----------|---------|
 | `GEMINI_API_KEY` | Flutter (Insights AI, etc.) |
-| `API_BASE_URL` | Flutter → `AuthRemoteService`, `UsageRemoteService` |
+| `API_BASE_URL` | Flutter → auth, usage, and habit sync to MongoDB via API |
 | `MONGODB_URI` | Optional here; copied to `server/.env` when set |
 
 ## After sync

@@ -5,7 +5,8 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { hashPassword, verifyPassword, newSessionToken } = require("./password");
-const { registerAdminRoutes } = require("./admin");
+const { registerAdminRoutes, requireAdmin } = require("./admin");
+const { registerHabitRoutes } = require("./habits");
 
 const userSchema = new mongoose.Schema(
   {
@@ -27,6 +28,17 @@ const usageDaySchema = new mongoose.Schema(
 );
 usageDaySchema.index({ userId: 1, dayKey: 1 }, { unique: true });
 const UsageDay = mongoose.model("UsageDay", usageDaySchema);
+
+const habitSnapshotSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    weekKey: { type: String, required: true },
+    data: { type: mongoose.Schema.Types.Mixed, required: true },
+  },
+  { timestamps: true },
+);
+habitSnapshotSchema.index({ userId: 1, weekKey: 1 }, { unique: true });
+const HabitSnapshot = mongoose.model("HabitSnapshot", habitSnapshotSchema);
 
 function normalizeEmail(raw) {
   return String(raw || "")
@@ -105,6 +117,7 @@ async function main() {
         "Auth: POST /api/v1/auth/register  POST /api/v1/auth/login\n" +
         "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
+        "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>\n" +
         "Health: GET /health",
     );
   });
@@ -210,7 +223,14 @@ async function main() {
     }
   });
 
-  registerAdminRoutes(app, { User, UsageDay });
+  registerHabitRoutes(app, {
+    HabitSnapshot,
+    requireAuth,
+    requireAdmin,
+    assertOwnUser,
+  });
+
+  registerAdminRoutes(app, { User, UsageDay, HabitSnapshot });
 
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, "0.0.0.0", () => {

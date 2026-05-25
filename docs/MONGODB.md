@@ -38,7 +38,17 @@ API_BASE_URL=http://10.0.2.2:3000
 
 Fully restart the app after changing `.env`.
 
-## 4) What gets saved in MongoDB
+## 4) Automatic sync from the app
+
+When `API_BASE_URL` is set (e.g. your Render URL) and you **register or log in**, the app:
+
+1. Stores a **Bearer token** locally and uses it for API calls.
+2. **Uploads usage** after each refresh (today’s day + full history on sign-in).
+3. **Uploads habits/mood/logs** whenever you change the habit tracker (current week snapshot).
+
+Local Hive storage still works offline; cloud sync runs in the background when signed in.
+
+## 5) What gets saved in MongoDB
 
 ### `users` collection
 
@@ -58,7 +68,15 @@ Body = daily usage JSON (`date`, `totalScreenTime`, `hourlyUsageMinutes`, `apps[
 
 `GET /api/v1/users/<email>/usage-days` — list days for that user.
 
-## 5) Security notes
+### `habitsnapshots` collection (per email + week)
+
+`PUT /api/v1/users/<email>/habit-snapshot/<weekKey>` with Bearer token.
+
+Body: `{ weekKey, habits[], moodDays[], logs[] }` (same shape as local Hive).
+
+Admin: `GET /api/v1/admin/users/<email>/habit-snapshot` (latest week).
+
+## 6) Security notes
 
 - Do **not** commit `server/.env` or root `.env`.
 - Use **HTTPS** in production.

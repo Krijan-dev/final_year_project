@@ -9,11 +9,13 @@ import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/screens/home_shell.dart";
 import "package:life_pattern_tracker/screens/permission_onboarding_screen.dart";
 import "package:life_pattern_tracker/screens/welcome_screen.dart";
+import "package:life_pattern_tracker/services/gemini_key_store.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
+  await Hive.openBox<dynamic>(kAppSettingsBoxName);
   runApp(const ProviderScope(child: LifePatternApp()));
 }
 
