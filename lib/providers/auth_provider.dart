@@ -2,7 +2,6 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/services/auth_remote_service.dart";
 import "package:life_pattern_tracker/services/auth_storage_service.dart";
 import "package:life_pattern_tracker/services/auth_token_store.dart";
-import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 
 final authStorageServiceProvider = Provider<AuthStorageService>((ref) {
   return AuthStorageService();
@@ -49,9 +48,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     }
     state = AuthState(ready: true, email: email);
-    if (email != null && AuthRemoteService.isConfigured) {
-      Future.microtask(CloudSyncService.pushAll);
-    }
   }
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
@@ -125,7 +121,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await AuthTokenStore.write(result.token);
       await _storage.setSessionEmail(result.email);
       state = state.copyWith(email: result.email);
-      Future.microtask(CloudSyncService.pushAll);
       return null;
     }
 
@@ -192,7 +187,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await AuthTokenStore.write(result.token);
     await _storage.setSessionEmail(result.email);
     state = state.copyWith(email: result.email);
-    Future.microtask(CloudSyncService.pushAll);
     return null;
   }
 
@@ -214,7 +208,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await AuthTokenStore.write(result.token);
       await _storage.setSessionEmail(result.email);
       state = state.copyWith(email: result.email);
-      Future.microtask(CloudSyncService.pushAll);
       return null;
     }
 

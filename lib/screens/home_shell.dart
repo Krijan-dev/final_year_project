@@ -1,6 +1,9 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 import "package:life_pattern_tracker/screens/account_screen.dart";
 import "package:life_pattern_tracker/screens/apps_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
@@ -18,9 +21,40 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
+  String? _lastCloudSyncEmail;
+  bool _cloudSyncRunning = false;
+
+  Future<void> _restoreFromCloudAndRefresh() async {
+    if (_cloudSyncRunning) return;
+    _cloudSyncRunning = true;
+    try {
+      await CloudSyncService.syncOnSignIn();
+      await ref.read(usageProvider.notifier).reloadFromStorage();
+      await ref.read(habitTrackerProvider.notifier).refresh();
+      if (ref.read(usageProvider).hasPermission) {
+        await ref.read(usageProvider.notifier).refreshToday();
+      }
+    } finally {
+      _cloudSyncRunning = false;
+    }
+  }
+
+  void _scheduleCloudSyncIfNeeded(AuthState auth) {
+    if (!auth.ready || !auth.isSignedIn || auth.email == null) {
+      _lastCloudSyncEmail = null;
+      return;
+    }
+    if (_lastCloudSyncEmail == auth.email) return;
+    _lastCloudSyncEmail = auth.email;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _restoreFromCloudAndRefresh();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+    _scheduleCloudSyncIfNeeded(auth);
     final state = ref.watch(usageProvider);
     const pages = [
       DashboardScreen(),

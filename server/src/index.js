@@ -204,7 +204,7 @@ async function main() {
         "      forgot-password  verify-reset-code  reset-password\n" +
         "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
-        "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>\n" +
+        "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>  GET .../habit-snapshots/latest\n" +
         "Support chat: POST/GET /api/v1/support/... (Bearer user token)\n" +
         "Admin support: GET/POST /api/v1/admin/support/conversations/...\n" +
         "Crisis flags: POST /api/v1/crisis-flags  GET /api/v1/admin/crisis-flags\n" +

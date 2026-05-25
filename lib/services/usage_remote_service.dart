@@ -16,6 +16,30 @@ class UsageRemoteService {
 
   bool get isConfigured => ApiConfig.isConfigured;
 
+  Future<List<DailyUsageModel>> fetchAllUsageDays({required String userEmail}) async {
+    if (!isConfigured) return [];
+    final token = AuthTokenStore.read();
+    if (token.isEmpty) return [];
+    final uid = Uri.encodeComponent(userEmail);
+    final url = Uri.parse("${ApiConfig.baseUrl}/api/v1/users/$uid/usage-days");
+    try {
+      final res = await http.get(url, headers: AuthRemoteService.authHeaders(token));
+      if (res.statusCode >= 400) {
+        AppLog.e("UsageRemoteService: GET days ${res.statusCode}", error: res.body);
+        return [];
+      }
+      final decoded = jsonDecode(res.body);
+      if (decoded is! List) return [];
+      return decoded
+          .whereType<Map>()
+          .map((e) => DailyUsageModel.fromMap(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e, st) {
+      AppLog.e("UsageRemoteService fetch failed", error: e, stackTrace: st);
+      return [];
+    }
+  }
+
   /// Fire-and-forget upload of one day for [userEmail] (signed-in account).
   Future<void> uploadUsageDay({
     required String userEmail,
