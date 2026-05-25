@@ -23,7 +23,15 @@ function serializeMessage(doc) {
   };
 }
 
-function registerSupportRoutes(app, { SupportConversation, SupportMessage, requireAuth, requireAdmin }) {
+async function deleteConversationFully(SupportConversation, SupportMessage, convId) {
+  await SupportMessage.deleteMany({ conversationId: convId });
+  await SupportConversation.findByIdAndDelete(convId);
+}
+
+function registerSupportRoutes(
+  app,
+  { SupportConversation, SupportMessage, requireAuth, requireAdmin, createCrisisFlag },
+) {
   async function findOpenConversation(userId) {
     return SupportConversation.findOne({
       userId,
@@ -130,6 +138,10 @@ function registerSupportRoutes(app, { SupportConversation, SupportMessage, requi
         },
       );
 
+      if (createCrisisFlag) {
+        await createCrisisFlag(req.authEmail, "support_chat", text);
+      }
+
       res.status(201).json({ ok: true, message: serializeMessage(msg) });
     } catch (err) {
       console.error(err);
@@ -219,23 +231,14 @@ function registerSupportRoutes(app, { SupportConversation, SupportMessage, requi
     }
   });
 
-  app.patch("/api/v1/admin/support/conversations/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/v1/admin/support/conversations/:id", requireAdmin, async (req, res) => {
     try {
-      const status = String(req.body?.status || "").trim();
-      if (!["waiting", "active", "closed"].includes(status)) {
-        return res.status(400).json({ error: "Invalid status" });
-      }
-      const conv = await SupportConversation.findByIdAndUpdate(
-        req.params.id,
-        { status },
-        { new: true },
-      )
-        .lean()
-        .exec();
+      const conv = await SupportConversation.findById(req.params.id).exec();
       if (!conv) {
         return res.status(404).json({ error: "Conversation not found" });
       }
-      res.json({ ok: true, conversation: serializeConversation(conv) });
+      await deleteConversationFully(SupportConversation, SupportMessage, conv._id);
+      res.json({ ok: true, deleted: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });
@@ -243,4 +246,4 @@ function registerSupportRoutes(app, { SupportConversation, SupportMessage, requi
   });
 }
 
-module.exports = { registerSupportRoutes };
+module.exports = { registerSupportRoutes, deleteConversationFully };
