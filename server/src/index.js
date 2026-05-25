@@ -7,6 +7,7 @@ const mongoose = require("mongoose");
 const { hashPassword, verifyPassword, newSessionToken } = require("./password");
 const { registerAdminRoutes, requireAdmin } = require("./admin");
 const { registerHabitRoutes } = require("./habits");
+const { registerSupportRoutes } = require("./support");
 
 const userSchema = new mongoose.Schema(
   {
@@ -39,6 +40,40 @@ const habitSnapshotSchema = new mongoose.Schema(
 );
 habitSnapshotSchema.index({ userId: 1, weekKey: 1 }, { unique: true });
 const HabitSnapshot = mongoose.model("HabitSnapshot", habitSnapshotSchema);
+
+const supportConversationSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    status: {
+      type: String,
+      enum: ["waiting", "active", "closed"],
+      default: "waiting",
+    },
+    lastMessageAt: { type: Date, default: Date.now },
+    lastPreview: { type: String, default: "" },
+    unreadForAdmin: { type: Number, default: 0 },
+    unreadForUser: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+);
+supportConversationSchema.index({ status: 1, lastMessageAt: -1 });
+
+const supportMessageSchema = new mongoose.Schema(
+  {
+    conversationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SupportConversation",
+      required: true,
+      index: true,
+    },
+    sender: { type: String, enum: ["user", "admin"], required: true },
+    text: { type: String, required: true, maxlength: 4000 },
+  },
+  { timestamps: true },
+);
+
+const SupportConversation = mongoose.model("SupportConversation", supportConversationSchema);
+const SupportMessage = mongoose.model("SupportMessage", supportMessageSchema);
 
 function normalizeEmail(raw) {
   return String(raw || "")
@@ -118,6 +153,8 @@ async function main() {
         "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
         "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>\n" +
+        "Support chat: POST/GET /api/v1/support/... (Bearer user token)\n" +
+        "Admin support: GET/POST /api/v1/admin/support/conversations/...\n" +
         "Health: GET /health",
     );
   });
@@ -228,6 +265,13 @@ async function main() {
     requireAuth,
     requireAdmin,
     assertOwnUser,
+  });
+
+  registerSupportRoutes(app, {
+    SupportConversation,
+    SupportMessage,
+    requireAuth,
+    requireAdmin,
   });
 
   registerAdminRoutes(app, { User, UsageDay, HabitSnapshot });
