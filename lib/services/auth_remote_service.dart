@@ -1,6 +1,7 @@
 import "dart:convert";
 
 import "package:http/http.dart" as http;
+import "package:life_pattern_tracker/services/api_config.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 
 class AuthRemoteResult {
@@ -15,12 +16,10 @@ class AuthRemoteResult {
 
 /// Register/login against MongoDB via `server/` (see docs/MONGODB.md).
 class AuthRemoteService {
-  static const String _baseUrl = String.fromEnvironment("API_BASE_URL");
-
-  static bool get isConfigured => _baseUrl.trim().isNotEmpty;
+  static bool get isConfigured => ApiConfig.isConfigured;
 
   static Uri _uri(String path) {
-    final base = _baseUrl.trim().replaceAll(RegExp(r"/$"), "");
+    final base = ApiConfig.baseUrl;
     return Uri.parse("$base$path");
   }
 

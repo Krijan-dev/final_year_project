@@ -5,7 +5,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
-import "package:life_pattern_tracker/services/auth_remote_service.dart";
+import "package:life_pattern_tracker/services/api_config.dart";
 import "package:life_pattern_tracker/services/support_remote_service.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
@@ -78,8 +78,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   }
 
   Future<void> _connectToHuman() async {
-    if (!AuthRemoteService.isConfigured) {
-      _showSnack("Sign-in and API are required for live support. Set API_BASE_URL in .env.");
+    if (!ApiConfig.isConfigured) {
+      _showSnack(
+        "API URL not loaded. Stop the app, then run: .\\run_dev.ps1 (or flutter run --dart-define-from-file=.env)",
+      );
       return;
     }
     final auth = ref.read(authProvider);
