@@ -1,6 +1,7 @@
 import "dart:io";
 
 import "package:flutter/material.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
@@ -14,6 +15,11 @@ import "package:life_pattern_tracker/theme/app_colors.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (_) {
+    // Use --dart-define-from-file=.env if the asset is missing.
+  }
   await Hive.initFlutter();
   await Hive.openBox<dynamic>(kAppSettingsBoxName);
   runApp(const ProviderScope(child: LifePatternApp()));
