@@ -1,8 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:life_pattern_tracker/providers/auth_provider.dart";
-import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/screens/account_screen.dart";
 import "package:life_pattern_tracker/screens/apps_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
 import "package:life_pattern_tracker/widgets/floating_chat_overlay.dart";
@@ -23,19 +22,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(usageProvider);
-    final notifier = ref.read(usageProvider.notifier);
-    final sessionEmail = ref.watch(authProvider.select((a) => a.email));
     const pages = [
       DashboardScreen(),
       HabitScreen(),
       InsightsScreen(),
       AppsScreen(),
-    ];
-    const titles = [
-      "Dashboard",
-      "Habit",
-      "Insights",
-      "Apps",
+      AccountScreen(),
     ];
     final safeIndex = _index.clamp(0, pages.length - 1);
     if (safeIndex != _index) {
@@ -47,67 +39,35 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBg = isDark ? const Color(0xFF111420) : Colors.white;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: Text(
-          titles[safeIndex],
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () async {
-              await Future.wait<void>([
-                notifier.refreshToday(),
-                ref.read(habitTrackerProvider.notifier).refresh(),
-              ]);
-            },
-            icon: const Icon(Icons.refresh),
-            tooltip: "Refresh",
-          ),
-          PopupMenuButton<String>(
-            tooltip: "Account",
-            onSelected: (value) async {
-              if (value == "logout") {
-                await ref.read(authProvider.notifier).logout();
-              }
-            },
-            itemBuilder: (context) => [
-              if (sessionEmail != null)
-                PopupMenuItem<String>(
-                  enabled: false,
-                  child: Text(
-                    sessionEmail,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
-              if (sessionEmail != null) const PopupMenuDivider(),
-              const PopupMenuItem(value: "logout", child: Text("Log out")),
-            ],
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           AppGradientBackground(
             dark: isDark,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              child: KeyedSubtree(key: ValueKey(safeIndex), child: pages[safeIndex]),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  if (state.syncing) const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 280),
+                      child: KeyedSubtree(key: ValueKey(safeIndex), child: pages[safeIndex]),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          if (state.syncing) const LinearProgressIndicator(minHeight: 2),
           const FloatingChatOverlay(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: navBg,
+        surfaceTintColor: navBg,
         elevation: 2,
         shadowColor: Colors.black26,
         selectedIndex: safeIndex,
@@ -117,6 +77,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           NavigationDestination(icon: Icon(Icons.check_circle_outline), label: "Habit"),
           NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
           NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
+          NavigationDestination(icon: Icon(Icons.person_outline), label: "Account"),
         ],
       ),
     );
