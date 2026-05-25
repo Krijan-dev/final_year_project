@@ -63,7 +63,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return parts.length == 2 && parts[0].isNotEmpty && parts[1].contains(".");
   }
 
-  Future<String?> register(String email, String password) async {
+  Future<({String? error, String? devCode, String? devHint})> sendVerificationCodeWithDev(
+    String email,
+  ) async {
+    final normalized = normalizeEmail(email);
+    if (!isValidEmail(normalized)) {
+      return (error: "Enter a valid email address.", devCode: null, devHint: null);
+    }
+    if (!AuthRemoteService.isConfigured) {
+      return (error: "API not configured.", devCode: null, devHint: null);
+    }
+    final result = await AuthRemoteService.sendVerificationCode(email: normalized);
+    if (!result.ok) {
+      return (error: result.error, devCode: null, devHint: null);
+    }
+    return (error: null, devCode: result.devCode, devHint: result.devHint);
+  }
+
+  Future<({String? error, String? verificationToken})> verifyEmailCode(
+    String email,
+    String code,
+  ) async {
+    final normalized = normalizeEmail(email);
+    if (!isValidEmail(normalized)) {
+      return (error: "Enter a valid email address.", verificationToken: null);
+    }
+    final result = await AuthRemoteService.verifyEmailCode(
+      email: normalized,
+      code: code.trim(),
+    );
+    if (!result.ok) {
+      return (error: result.error, verificationToken: null);
+    }
+    return (error: null, verificationToken: result.verificationToken);
+  }
+
+  Future<String?> register(
+    String email,
+    String password, {
+    String? verificationToken,
+  }) async {
     final normalized = normalizeEmail(email);
     if (!isValidEmail(normalized)) {
       return "Enter a valid email address.";
@@ -73,9 +112,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     if (AuthRemoteService.isConfigured) {
+      final token = verificationToken?.trim() ?? "";
+      if (token.isEmpty) {
+        return "Verify your email with the code we sent first.";
+      }
       final result = await AuthRemoteService.register(
         email: normalized,
         password: password,
+        verificationToken: token,
       );
       if (!result.ok) return result.error;
       await AuthTokenStore.write(result.token);

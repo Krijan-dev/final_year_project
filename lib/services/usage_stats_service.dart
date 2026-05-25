@@ -8,7 +8,9 @@ class UsageStatsService {
 
   Future<bool> hasUsagePermission() async {
     if (!Platform.isAndroid) return false;
-    final result = await _channel.invokeMethod<bool>("hasUsagePermission");
+    final result = await _channel
+        .invokeMethod<bool>("hasUsagePermission")
+        .timeout(const Duration(seconds: 10), onTimeout: () => false);
     return result ?? false;
   }
 

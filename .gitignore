@@ -1,5 +1,6 @@
 # Local secrets (copy from .env.example)
 .env
+flutter.env
 
 # Miscellaneous
 *.class
