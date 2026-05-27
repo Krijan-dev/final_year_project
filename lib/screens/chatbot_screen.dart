@@ -4,9 +4,14 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
+import "package:life_pattern_tracker/providers/screen_time_limits_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
+import "package:life_pattern_tracker/services/ai_scope.dart";
 import "package:life_pattern_tracker/services/api_config.dart";
 import "package:life_pattern_tracker/services/crisis_flag_remote_service.dart";
+import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
+import "package:life_pattern_tracker/services/gemini_service.dart";
+import "package:life_pattern_tracker/services/insight_context_builder.dart";
 import "package:life_pattern_tracker/services/support_remote_service.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
@@ -47,6 +52,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   bool _humanLoading = false;
   String? _humanError;
   bool _humanSessionActive = false;
+  bool _assistantBusy = false;
 
   static const List<String> _quickPrompts = [
     "How is my focus today?",
@@ -327,18 +333,19 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             ),
           _ChatInputBar(
             controller: _controller,
-            onSend: _sendMessage,
+            onSend: _assistantBusy ? () {} : _sendMessage,
             compact: widget.onClose != null,
             hint: isHuman ? "Message support…" : "Message…",
+            sendEnabled: !_assistantBusy,
           ),
         ],
       ),
     );
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _assistantBusy) return;
 
     if (_mode == _ChatMode.human) {
       if (CrisisSupport.isCrisisRelated(text)) {
@@ -363,30 +370,98 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       unawaited(CrisisFlagRemoteService.reportIfNeeded(text: text, source: "ai_chat"));
     }
 
-    final usage = ref.read(usageProvider);
-    final usageNotifier = ref.read(usageProvider.notifier);
-    final habitTracker = ref.read(habitTrackerProvider);
-
-    final response = CrisisSupport.isCrisisRelated(text)
-        ? CrisisSupport.reply
-        : _botReply(
-      text: text,
-      dailyMinutes: usage.today?.totalScreenTime ?? 0,
-      averageMinutes: usageNotifier.averageDailyMinutes(),
-      focusScore: usageNotifier.focusScore(),
-      productivityScore: usageNotifier.productivityScore(),
-      weeklyHabitPercent: habitTracker.weeklyProgressPercent,
-      habitTrackerPercent: habitTracker.weeklyProgressPercent,
-      moodAverage: habitTracker.averageMood,
-      logsToday: habitTracker.todayLogs.length,
-    );
-
     setState(() {
+      _assistantBusy = true;
       _messages.add(_ChatMessage(text: text, isUser: true));
-      _messages.add(_ChatMessage(text: response, isUser: false));
+      _messages.add(const _ChatMessage(text: "Thinking…", isUser: false, isLoading: true));
     });
     _controller.clear();
     _scrollToBottom();
+
+    final response = await _assistantReply(text);
+
+    if (!mounted) return;
+    setState(() {
+      _assistantBusy = false;
+      if (_messages.isNotEmpty && _messages.last.isLoading) {
+        _messages.removeLast();
+      }
+      _messages.add(_ChatMessage(text: response, isUser: false));
+    });
+    _scrollToBottom();
+  }
+
+  Future<String> _assistantReply(String text) async {
+    if (CrisisSupport.isCrisisRelated(text)) {
+      return CrisisSupport.reply;
+    }
+
+    final usage = ref.read(usageProvider);
+    final usageNotifier = ref.read(usageProvider.notifier);
+    final habitTracker = ref.read(habitTrackerProvider);
+    final limits = ref.read(screenTimeLimitsProvider);
+
+    final dailyMinutes = usage.today?.totalScreenTime ?? 0;
+    final averageMinutes = usageNotifier.averageDailyMinutes();
+    final focusScore = usageNotifier.focusScore();
+    final productivityScore = usageNotifier.productivityScore();
+    final weeklyHabitPercent = habitTracker.weeklyProgressPercent;
+    final moodAverage = habitTracker.averageMood;
+    final logsToday = habitTracker.todayLogs.length;
+
+    final decision = AiScope.classify(text);
+    if (decision == AiScopeDecision.greeting) return AiScope.greetingReply;
+    if (decision == AiScopeDecision.help) return AiScope.helpReply;
+    if (decision == AiScopeDecision.offTopic) return AiScope.offTopicReply;
+    if (decision == AiScopeDecision.empty) {
+      return "Ask me about screen time, habits, sleep, mood, or focus.";
+    }
+
+    if (!GeminiService.isConfigured) {
+      return _botReply(
+        text: text,
+        dailyMinutes: dailyMinutes,
+        averageMinutes: averageMinutes,
+        focusScore: focusScore,
+        productivityScore: productivityScore,
+        weeklyHabitPercent: weeklyHabitPercent,
+        moodAverage: moodAverage,
+        logsToday: logsToday,
+        limitCount: limits.limits.length,
+      );
+    }
+
+    try {
+      final metrics = DashboardMetricsService.build(
+        today: usage.today,
+        history: usage.history,
+        habits: habitTracker,
+      );
+      var fullContext = InsightContextBuilder.build(metrics: metrics, habits: habitTracker);
+      if (limits.limits.isNotEmpty) {
+        final limitLines = limits.limits.values
+            .map((l) => "- ${l.displayName}: ${l.limitMinutesPerDay} min/day")
+            .join("\n");
+        fullContext = "$fullContext\n\nAPP DAILY LIMITS (user-set)\n$limitLines";
+      }
+
+      return await GeminiService.chatReply(
+        userPrompt: text,
+        fullContext: fullContext,
+      );
+    } catch (_) {
+      return _botReply(
+        text: text,
+        dailyMinutes: dailyMinutes,
+        averageMinutes: averageMinutes,
+        focusScore: focusScore,
+        productivityScore: productivityScore,
+        weeklyHabitPercent: weeklyHabitPercent,
+        moodAverage: moodAverage,
+        logsToday: logsToday,
+        limitCount: limits.limits.length,
+      );
+    }
   }
 
   String _botReply({
@@ -396,12 +471,20 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     required int focusScore,
     required int productivityScore,
     required int weeklyHabitPercent,
-    required int habitTrackerPercent,
     required double moodAverage,
     required int logsToday,
+    required int limitCount,
   }) {
     final q = text.toLowerCase();
 
+    if (q.contains("limit") || q.contains("cap") || q.contains("notification")) {
+      if (limitCount == 0) {
+        return "You haven't set any per-app limits yet. Open the Time tab → Daily app limits → Add limit, "
+            "then pick an app and minutes (including Custom).";
+      }
+      return "You have $limitCount app limit${limitCount == 1 ? '' : 's'} active. "
+          "Open the Time tab to adjust presets or set a custom minute cap.";
+    }
     if (q.contains("habit")) {
       final moodLine = moodAverage > 0
           ? " Average mood this week: ${moodAverage.toStringAsFixed(1)}/10."
@@ -702,17 +785,39 @@ class _ChatBubble extends StatelessWidget {
                 ),
               ],
             ),
-            child: Text(
-              message.text,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isUser
-                    ? Colors.white
-                    : supportBubble
-                        ? const Color(0xFF1E3A8A)
-                        : cs.onSurface,
-                height: 1.4,
-              ),
-            ),
+            child: message.isLoading
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: cs.primary.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        message.text,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    message.text,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isUser
+                          ? Colors.white
+                          : supportBubble
+                              ? const Color(0xFF1E3A8A)
+                              : cs.onSurface,
+                      height: 1.4,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -760,12 +865,14 @@ class _ChatInputBar extends StatelessWidget {
     required this.onSend,
     this.compact = false,
     this.hint = "Message…",
+    this.sendEnabled = true,
   });
 
   final TextEditingController controller;
   final VoidCallback onSend;
   final bool compact;
   final String hint;
+  final bool sendEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -828,10 +935,10 @@ class _ChatInputBar extends StatelessWidget {
               Material(
                 elevation: 2,
                 shadowColor: _kChatGreen.withValues(alpha: 0.4),
-                color: _kChatGreen,
+                color: sendEnabled ? _kChatGreen : Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
-                  onTap: onSend,
+                  onTap: sendEnabled ? onSend : null,
                   borderRadius: BorderRadius.circular(20),
                   splashColor: _kChatGreenDark.withValues(alpha: 0.3),
                   child: Padding(
@@ -854,10 +961,12 @@ class _ChatMessage {
     required this.isUser,
     this.remoteId,
     this.fromSupport = false,
+    this.isLoading = false,
   });
 
   final String text;
   final bool isUser;
   final String? remoteId;
   final bool fromSupport;
+  final bool isLoading;
 }

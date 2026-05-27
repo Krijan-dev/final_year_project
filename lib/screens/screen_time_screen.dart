@@ -200,42 +200,88 @@ String _presetLabel(int minutes) {
   return formatMinutes(minutes);
 }
 
+bool _isCustomLimitMinutes(int minutes) => !_kLimitPresets.contains(minutes);
+
 Future<int?> _askCustomLimitMinutes({
   required BuildContext context,
   required int initialMinutes,
 }) async {
   final controller = TextEditingController(text: initialMinutes.toString());
-  return showDialog<int>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text("Custom daily limit"),
-      content: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: "Minutes per day",
-          hintText: "e.g. 75",
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text("Cancel"),
-        ),
-        FilledButton(
-          onPressed: () {
-            final parsed = int.tryParse(controller.text.trim());
-            if (parsed == null || parsed < AppScreenTimeLimit.minMinutes) {
-              Navigator.pop(ctx);
-              return;
-            }
-            Navigator.pop(ctx, parsed.clamp(AppScreenTimeLimit.minMinutes, AppScreenTimeLimit.maxMinutes));
-          },
-          child: const Text("Apply"),
-        ),
-      ],
-    ),
-  );
+  try {
+    return await showDialog<int>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (ctx) {
+        var errorText = "";
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text("Custom daily limit"),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: "Minutes per day",
+                hintText:
+                    "${AppScreenTimeLimit.minMinutes}–${AppScreenTimeLimit.maxMinutes}",
+                errorText: errorText.isEmpty ? null : errorText,
+              ),
+              onSubmitted: (_) {
+                final parsed = int.tryParse(controller.text.trim());
+                if (parsed == null ||
+                    parsed < AppScreenTimeLimit.minMinutes ||
+                    parsed > AppScreenTimeLimit.maxMinutes) {
+                  setDialogState(() {
+                    errorText =
+                        "Enter ${AppScreenTimeLimit.minMinutes}–${AppScreenTimeLimit.maxMinutes} minutes";
+                  });
+                  return;
+                }
+                Navigator.pop(
+                  ctx,
+                  parsed.clamp(
+                    AppScreenTimeLimit.minMinutes,
+                    AppScreenTimeLimit.maxMinutes,
+                  ),
+                );
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final parsed = int.tryParse(controller.text.trim());
+                  if (parsed == null ||
+                      parsed < AppScreenTimeLimit.minMinutes ||
+                      parsed > AppScreenTimeLimit.maxMinutes) {
+                    setDialogState(() {
+                      errorText =
+                          "Enter ${AppScreenTimeLimit.minMinutes}–${AppScreenTimeLimit.maxMinutes} minutes";
+                    });
+                    return;
+                  }
+                  Navigator.pop(
+                    ctx,
+                    parsed.clamp(
+                      AppScreenTimeLimit.minMinutes,
+                      AppScreenTimeLimit.maxMinutes,
+                    ),
+                  );
+                },
+                child: const Text("Apply"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  } finally {
+    controller.dispose();
+  }
 }
 
 class _LimitsSection extends ConsumerWidget {
@@ -594,12 +640,18 @@ class _LimitsSection extends ConsumerWidget {
                                   onSelected: (_) => setState(() => selectedPreset = m),
                                 );
                               }),
-                              ActionChip(
+                              FilterChip(
                                 avatar: const Icon(Icons.edit_outlined, size: 16),
-                                label: const Text("Custom"),
-                                onPressed: () async {
+                                label: Text(
+                                  _isCustomLimitMinutes(selectedPreset)
+                                      ? "Custom (${_presetLabel(selectedPreset)})"
+                                      : "Custom",
+                                ),
+                                selected: _isCustomLimitMinutes(selectedPreset),
+                                showCheckmark: true,
+                                onSelected: (_) async {
                                   final custom = await _askCustomLimitMinutes(
-                                    context: ctx2,
+                                    context: context,
                                     initialMinutes: selectedPreset,
                                   );
                                   if (custom == null) return;
@@ -608,6 +660,17 @@ class _LimitsSection extends ConsumerWidget {
                               ),
                             ],
                           ),
+                          if (_isCustomLimitMinutes(selectedPreset))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                "Selected: ${_presetLabel(selectedPreset)} per day",
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: _kGreenDark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -825,10 +888,16 @@ class _LimitCard extends ConsumerWidget {
                   }),
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: ActionChip(
+                    child: FilterChip(
                       avatar: const Icon(Icons.edit_outlined, size: 16),
-                      label: const Text("Custom"),
-                      onPressed: () async {
+                      label: Text(
+                        _isCustomLimitMinutes(limit.limitMinutesPerDay)
+                            ? "Custom (${_presetLabel(limit.limitMinutesPerDay)})"
+                            : "Custom",
+                      ),
+                      selected: _isCustomLimitMinutes(limit.limitMinutesPerDay),
+                      showCheckmark: true,
+                      onSelected: (_) async {
                         final custom = await _askCustomLimitMinutes(
                           context: context,
                           initialMinutes: limit.limitMinutesPerDay,
