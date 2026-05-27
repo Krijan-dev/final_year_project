@@ -76,17 +76,23 @@ Keep replies under 80 words. Mention at most one metric when relevant.
 
   static Future<String> chatReply({
     required String userPrompt,
-    required int todayMinutes,
-    required int averageMinutes,
-    required int focusScore,
-    required int productivityScore,
+    required String fullContext,
   }) async {
     if (CrisisSupport.isCrisisRelated(userPrompt)) {
       return CrisisSupport.reply;
     }
 
-    if (!AiScope.allowsApiCall(userPrompt)) {
-      return AiScope.offTopicReply;
+    switch (AiScope.classify(userPrompt)) {
+      case AiScopeDecision.empty:
+        return "Ask me about screen time, habits, sleep, mood, or focus.";
+      case AiScopeDecision.greeting:
+        return AiScope.greetingReply;
+      case AiScopeDecision.help:
+        return AiScope.helpReply;
+      case AiScopeDecision.offTopic:
+        return AiScope.offTopicReply;
+      case AiScopeDecision.allowed:
+        break;
     }
 
     if (!isConfigured) {
@@ -96,16 +102,16 @@ Keep replies under 80 words. Mention at most one metric when relevant.
     }
 
     final prompt = """
-User metrics:
-- Today usage minutes: $todayMinutes
-- Average daily usage minutes: $averageMinutes
-- Focus score (0-100): $focusScore
-- Productivity score (0-100): $productivityScore
+You are answering inside Life Pattern Tracker. Use ONLY the user data below.
+Give practical, specific advice about habits and/or screen time. Under 90 words.
+
+User data:
+$fullContext
 
 User question: "$userPrompt"
 """;
 
-    final text = await _generateWithFallback(prompt);
+    final text = await _generateWithFallback(prompt, maxOutputTokens: 220);
     return text.isNotEmpty ? text : "I could not generate a response right now.";
   }
 
