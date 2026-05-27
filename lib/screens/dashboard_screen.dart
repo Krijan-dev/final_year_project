@@ -1,6 +1,5 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:life_pattern_tracker/models/app_usage_model.dart";
 import "package:life_pattern_tracker/providers/dashboard_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
@@ -71,16 +70,16 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
           ],
-          if (m.topApps.isNotEmpty) ...[
+          if (m.hasUsageData) ...[
             const SizedBox(height: 8),
-            const _SectionTitle(
-              icon: Icons.apps_outlined,
-              iconColor: Color(0xFF2563EB),
-              title: "Top apps today",
-              badge: "Usage",
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.smartphone_outlined, color: Color(0xFF2563EB)),
+                title: Text("Full screen time breakdown"),
+                subtitle: Text("Charts, categories, and all apps on the Time tab."),
+                trailing: Icon(Icons.chevron_right),
+              ),
             ),
-            const SizedBox(height: 12),
-            _TopAppsCard(apps: m.topApps),
           ],
         ],
       ),
@@ -107,7 +106,7 @@ class _DashboardHeader extends StatelessWidget {
         Text(
           metrics.hasUsageData
               ? metrics.coachSummaryFallback
-              : "Grant usage access on the Account tab, then pull down to refresh.",
+              : "Grant usage access under More → Account, or open Time for charts.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -565,64 +564,6 @@ class _InsightLineCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TopAppsCard extends StatelessWidget {
-  const _TopAppsCard({required this.apps});
-
-  final List<AppUsageModel> apps;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            for (var i = 0; i < apps.length; i++) ...[
-              if (i > 0) const Divider(height: 20),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Text(
-                      "${i + 1}",
-                      style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          apps[i].appName,
-                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          apps[i].category,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    formatMinutes(apps[i].usageTime),
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }

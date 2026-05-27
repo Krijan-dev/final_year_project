@@ -11,7 +11,6 @@ import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
-import "package:life_pattern_tracker/widgets/health_connect_summary_card.dart";
 
 const Color _kHabitGreen = Color(0xFF22C55E);
 const Color _kHabitGreenDark = Color(0xFF16A34A);
@@ -38,8 +37,6 @@ class HabitScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
           const _HabitHeader(),
-          const SizedBox(height: 16),
-          const HealthConnectSummaryCard(),
           const SizedBox(height: 16),
           _WeeklyProgressCard(
             percent: state.weeklyProgressPercent,
