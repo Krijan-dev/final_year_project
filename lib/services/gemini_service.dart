@@ -1,5 +1,6 @@
 import "package:google_generative_ai/google_generative_ai.dart";
 import "package:life_pattern_tracker/services/ai_scope.dart";
+import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/services/gemini_key_store.dart";
 
 class GeminiService {
@@ -32,23 +33,27 @@ Never answer off-topic questions, even briefly. No jokes, code, homework, news, 
 Keep replies under 80 words. Mention at most one metric when relevant.
 """;
 
-  static GenerativeModel _model(String modelName) {
+  static GenerativeModel _model(String modelName, {int maxOutputTokens = 180}) {
     return GenerativeModel(
       model: modelName,
       apiKey: resolvedApiKey,
       systemInstruction: Content.system(_coachSystemInstruction),
       generationConfig: GenerationConfig(
         temperature: 0.35,
-        maxOutputTokens: 180,
+        maxOutputTokens: maxOutputTokens,
       ),
     );
   }
 
-  static Future<String> _generateWithFallback(String prompt) async {
+  static Future<String> _generateWithFallback(
+    String prompt, {
+    int maxOutputTokens = 180,
+  }) async {
     Object? lastError;
     for (final modelName in _modelCandidates) {
       try {
-        final result = await _model(modelName).generateContent([Content.text(prompt)]);
+        final result = await _model(modelName, maxOutputTokens: maxOutputTokens)
+            .generateContent([Content.text(prompt)]);
         final text = result.text?.trim();
         if (text != null && text.isNotEmpty) {
           return text;
@@ -71,13 +76,23 @@ Keep replies under 80 words. Mention at most one metric when relevant.
 
   static Future<String> chatReply({
     required String userPrompt,
-    required int todayMinutes,
-    required int averageMinutes,
-    required int focusScore,
-    required int productivityScore,
+    required String fullContext,
   }) async {
-    if (!AiScope.allowsApiCall(userPrompt)) {
-      return AiScope.offTopicReply;
+    if (CrisisSupport.isCrisisRelated(userPrompt)) {
+      return CrisisSupport.reply;
+    }
+
+    switch (AiScope.classify(userPrompt)) {
+      case AiScopeDecision.empty:
+        return "Ask me about screen time, habits, sleep, mood, or focus.";
+      case AiScopeDecision.greeting:
+        return AiScope.greetingReply;
+      case AiScopeDecision.help:
+        return AiScope.helpReply;
+      case AiScopeDecision.offTopic:
+        return AiScope.offTopicReply;
+      case AiScopeDecision.allowed:
+        break;
     }
 
     if (!isConfigured) {
@@ -87,16 +102,16 @@ Keep replies under 80 words. Mention at most one metric when relevant.
     }
 
     final prompt = """
-User metrics:
-- Today usage minutes: $todayMinutes
-- Average daily usage minutes: $averageMinutes
-- Focus score (0-100): $focusScore
-- Productivity score (0-100): $productivityScore
+You are answering inside Life Pattern Tracker. Use ONLY the user data below.
+Give practical, specific advice about habits and/or screen time. Under 90 words.
+
+User data:
+$fullContext
 
 User question: "$userPrompt"
 """;
 
-    final text = await _generateWithFallback(prompt);
+    final text = await _generateWithFallback(prompt, maxOutputTokens: 220);
     return text.isNotEmpty ? text : "I could not generate a response right now.";
   }
 
@@ -139,5 +154,78 @@ Output format:
     }
 
     return lines.take(4).toList();
+  }
+
+  /// Short daily coach blurb for the dashboard (AI).
+  static Future<String> generateDashboardInsight({
+    required int todayMinutes,
+    required int averageMinutes,
+    required int focusScore,
+    required int productivityScore,
+    required int habitCompletionPercent,
+    required int bestStreakDays,
+    required double? moodAverage,
+    required String ruleContext,
+  }) async {
+    if (!isConfigured) {
+      return "Add a Gemini API key to get an AI daily coach summary.";
+    }
+
+    final moodLine = moodAverage != null
+        ? "Average mood this week: ${moodAverage.toStringAsFixed(1)}/10."
+        : "No mood logged this week yet.";
+
+    final prompt = """
+Write ONE short dashboard coach paragraph (2-3 sentences, max 55 words) for this user.
+Use ONLY the metrics below. Be specific, encouraging, and actionable.
+Do not use markdown or bullet points.
+
+Metrics:
+- Today screen minutes: $todayMinutes
+- Average daily screen minutes: $averageMinutes
+- Focus score (0-100): $focusScore
+- Productivity score (0-100): $productivityScore
+- Habit completion this week (%): $habitCompletionPercent
+- Best current habit streak (days): $bestStreakDays
+- $moodLine
+- Calculated context: $ruleContext
+""";
+
+    final text = await _generateWithFallback(prompt);
+    return text.isNotEmpty ? text : "Keep tracking habits and screen time to spot patterns.";
+  }
+
+  /// AI insight tips for the Insights tab (2–4 items).
+  static Future<List<String>> generateInsightTips({
+    required String fullContext,
+  }) async {
+    if (!isConfigured) return [];
+
+    final prompt = """
+You are a wellness coach inside a habit and screen-time tracking app.
+Read the user's data below and create exactly 3 personalized insights.
+Each insight must connect screen time patterns with habits or mood when possible.
+Be specific (name apps, hours, or habit names when relevant). Do not invent data not in the context.
+
+Output format — one insight per line:
+TITLE|DESCRIPTION
+- TITLE: max 6 words
+- DESCRIPTION: max 28 words, one actionable sentence
+- no numbering, no markdown, no bullets, no extra pipes in TITLE
+
+User data:
+$fullContext
+""";
+
+    final raw = await _generateWithFallback(
+      prompt,
+      maxOutputTokens: 420,
+    );
+    return raw
+        .split("\n")
+        .map((e) => e.replaceFirst(RegExp(r"^\s*[-*]\s*"), "").trim())
+        .where((e) => e.isNotEmpty && e.contains("|"))
+        .take(4)
+        .toList();
   }
 }

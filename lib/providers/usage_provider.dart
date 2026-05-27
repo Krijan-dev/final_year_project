@@ -1,17 +1,15 @@
-import "dart:async";
-import "dart:math";
-
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:life_pattern_tracker/data/demo_usage_data.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
+import "package:life_pattern_tracker/services/auth_storage_service.dart";
+import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
+import "package:life_pattern_tracker/utils/dev_spoof.dart";
 
 final usageStatsServiceProvider = Provider<UsageStatsService>((ref) => UsageStatsService());
 final usageStorageServiceProvider = Provider<UsageStorageService>((ref) => UsageStorageService());
-final usageRemoteServiceProvider = Provider<UsageRemoteService>((ref) => UsageRemoteService());
 
 class UsageState {
   const UsageState({
@@ -56,16 +54,16 @@ class UsageNotifier extends StateNotifier<UsageState> {
   UsageNotifier(
     this._statsService,
     this._storageService,
-    this._remoteService,
-    this._currentUserEmail,
+    this._authStorage,
+    this._usageRemote,
   ) : super(const UsageState()) {
     initialize();
   }
 
   final UsageStatsService _statsService;
   final UsageStorageService _storageService;
-  final UsageRemoteService _remoteService;
-  final String? Function() _currentUserEmail;
+  final AuthStorageService _authStorage;
+  final UsageRemoteService _usageRemote;
 
   Future<void> initialize() async {
     try {
@@ -95,37 +93,51 @@ class UsageNotifier extends StateNotifier<UsageState> {
     }
   }
 
+  /// Reload history from Hive after cloud restore (new phone / fresh install).
+  Future<void> reloadFromStorage() async {
+    final history = await _storageService.getAllDays();
+    final now = DateTime.now();
+    DailyUsageModel? today;
+    for (final day in history) {
+      if (day.date.year == now.year &&
+          day.date.month == now.month &&
+          day.date.day == now.day) {
+        today = day;
+        break;
+      }
+    }
+    state = state.copyWith(
+      history: history,
+      today: today ?? state.today,
+      clearError: true,
+    );
+  }
+
   Future<void> refreshToday() async {
     state = state.copyWith(syncing: true, clearError: true);
     try {
       final today = await _statsService.getUsageStats();
       if (today != null) {
         await _storageService.saveDay(today);
-        final email = _currentUserEmail();
-        if (email != null && email.isNotEmpty && _remoteService.isConfigured) {
-          unawaited(_remoteService.uploadUsageDay(userEmail: email, day: today));
-        }
       }
       final history = await _storageService.getAllDays();
       state = state.copyWith(
         syncing: false,
-        today: today,
+        today: today ?? state.today,
         history: history,
       );
+      await _syncToCloud(today);
     } catch (e) {
       state = state.copyWith(syncing: false, error: e.toString());
     }
   }
 
-  /// Debug-only: replace in-memory today + ~1 week history with demo data (not written to storage).
-  /// Use refresh to load real stats again.
-  void loadDemoUsage() {
-    final week = buildDemoWeekHistory();
-    state = state.copyWith(
-      today: week.isNotEmpty ? week.last : buildDemoDailyUsage(),
-      history: week,
-      clearError: true,
-    );
+  Future<void> _syncToCloud(DailyUsageModel? today) async {
+    if (DevSpoof.enabled) return; // Don't pollute your DB while testing UI.
+    if (!_usageRemote.isConfigured || today == null) return;
+    final email = await _authStorage.getSessionEmail();
+    if (email == null) return;
+    await _usageRemote.uploadUsageDay(userEmail: email, day: today);
   }
 
   int averageDailyMinutes() {
@@ -134,31 +146,32 @@ class UsageNotifier extends StateNotifier<UsageState> {
     return (total / state.history.length).round();
   }
 
-  int productivityScore() {
-    final daily = state.today?.totalScreenTime ?? 0;
-    final score = 100 - (daily ~/ 6);
-    return score.clamp(0, 100).toInt();
+  int productivityScore() => DashboardMetricsService.productivityScoreForToday(state.today);
+
+  int focusScore() => DashboardMetricsService.focusScoreForToday(state.today);
+
+  /// Daily screen-time goal for progress bar (8 hours).
+  static const int dailyScreenTimeGoalMinutes =
+      DashboardMetricsService.dailyScreenTimeGoalMinutes;
+
+  double screenTimeProgressFraction() {
+    final minutes = state.today?.totalScreenTime ?? 0;
+    if (dailyScreenTimeGoalMinutes <= 0) return 0;
+    return (minutes / dailyScreenTimeGoalMinutes).clamp(0.0, 1.0);
   }
 
-  int focusScore() {
-    final apps = state.today?.appUsages ?? const [];
-    final socialMins = apps
-        .where((app) =>
-            app.category.toLowerCase().contains("social") ||
-            app.appName.toLowerCase().contains("instagram") ||
-            app.appName.toLowerCase().contains("facebook") ||
-            app.appName.toLowerCase().contains("tiktok"))
-        .fold<int>(0, (sum, app) => sum + app.usageTime);
-    final score = 100 - min(90, socialMins ~/ 3);
-    return score.clamp(0, 100).toInt();
-  }
+  double productivityProgressFraction() => productivityScore() / 100;
+
+  double focusProgressFraction() => focusScore() / 100;
 }
+
+final usageRemoteServiceProvider = Provider<UsageRemoteService>((ref) => UsageRemoteService());
 
 final usageProvider = StateNotifierProvider<UsageNotifier, UsageState>((ref) {
   return UsageNotifier(
     ref.read(usageStatsServiceProvider),
     ref.read(usageStorageServiceProvider),
+    ref.read(authStorageServiceProvider),
     ref.read(usageRemoteServiceProvider),
-    () => ref.read(authProvider).email,
   );
 });

@@ -5,16 +5,58 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const { hashPassword, verifyPassword, newSessionToken } = require("./password");
+const { registerAdminRoutes, requireAdmin } = require("./admin");
+const { registerHabitRoutes } = require("./habits");
+const { registerSupportRoutes } = require("./support");
+const { registerCrisisRoutes } = require("./crisis");
+const {
+  registerEmailVerifyRoutes,
+  assertEmailVerifiedForRegister,
+} = require("./email_verify");
+const { registerPasswordResetRoutes } = require("./password_reset");
 
 const userSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
     sessionToken: { type: String, index: true, sparse: true },
+    emailVerified: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 const User = mongoose.model("User", userSchema);
+
+const emailVerificationSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    codeHash: { type: String, default: null },
+    codeExpiresAt: { type: Date, default: null },
+    lastSentAt: { type: Date, default: null },
+    sendWindowStart: { type: Date, default: null },
+    sendCountInWindow: { type: Number, default: 0 },
+    verified: { type: Boolean, default: false },
+    verificationToken: { type: String, default: null, index: true, sparse: true },
+    tokenExpiresAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+const EmailVerification = mongoose.model("EmailVerification", emailVerificationSchema);
+
+const passwordResetSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    codeHash: { type: String, default: null },
+    codeExpiresAt: { type: Date, default: null },
+    lastSentAt: { type: Date, default: null },
+    sendWindowStart: { type: Date, default: null },
+    sendCountInWindow: { type: Number, default: 0 },
+    verified: { type: Boolean, default: false },
+    resetToken: { type: String, default: null, index: true, sparse: true },
+    tokenExpiresAt: { type: Date, default: null },
+  },
+  { timestamps: true },
+);
+const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
 
 const usageDaySchema = new mongoose.Schema(
   {
@@ -26,6 +68,63 @@ const usageDaySchema = new mongoose.Schema(
 );
 usageDaySchema.index({ userId: 1, dayKey: 1 }, { unique: true });
 const UsageDay = mongoose.model("UsageDay", usageDaySchema);
+
+const habitSnapshotSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    weekKey: { type: String, required: true },
+    data: { type: mongoose.Schema.Types.Mixed, required: true },
+  },
+  { timestamps: true },
+);
+habitSnapshotSchema.index({ userId: 1, weekKey: 1 }, { unique: true });
+const HabitSnapshot = mongoose.model("HabitSnapshot", habitSnapshotSchema);
+
+const supportConversationSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    status: {
+      type: String,
+      enum: ["waiting", "active", "closed"],
+      default: "waiting",
+    },
+    lastMessageAt: { type: Date, default: Date.now },
+    lastPreview: { type: String, default: "" },
+    unreadForAdmin: { type: Number, default: 0 },
+    unreadForUser: { type: Number, default: 0 },
+  },
+  { timestamps: true },
+);
+supportConversationSchema.index({ status: 1, lastMessageAt: -1 });
+
+const supportMessageSchema = new mongoose.Schema(
+  {
+    conversationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SupportConversation",
+      required: true,
+      index: true,
+    },
+    sender: { type: String, enum: ["user", "admin"], required: true },
+    text: { type: String, required: true, maxlength: 4000 },
+  },
+  { timestamps: true },
+);
+
+const SupportConversation = mongoose.model("SupportConversation", supportConversationSchema);
+const SupportMessage = mongoose.model("SupportMessage", supportMessageSchema);
+
+const crisisFlagSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true, index: true },
+    source: { type: String, enum: ["ai_chat", "support_chat"], required: true },
+    messagePreview: { type: String, required: true },
+    status: { type: String, enum: ["open", "reviewed"], default: "open" },
+  },
+  { timestamps: true },
+);
+crisisFlagSchema.index({ status: 1, createdAt: -1 });
+const CrisisFlag = mongoose.model("CrisisFlag", crisisFlagSchema);
 
 function normalizeEmail(raw) {
   return String(raw || "")
@@ -101,8 +200,14 @@ async function main() {
   app.get("/", (_req, res) => {
     res.type("text/plain").send(
       "Life Pattern Tracker API is running.\n\n" +
-        "Auth: POST /api/v1/auth/register  POST /api/v1/auth/login\n" +
+        "Auth: POST /api/v1/auth/send-verification  verify-email  register  login\n" +
+        "      forgot-password  verify-reset-code  reset-password\n" +
+        "Admin: POST /api/v1/admin/login  GET /api/v1/admin/users (Bearer admin token)\n" +
         "Data (Bearer token): PUT/GET /api/v1/users/<email>/usage-days/...\n" +
+        "Habits: PUT/GET /api/v1/users/<email>/habit-snapshot/<weekKey>  GET .../habit-snapshots/latest\n" +
+        "Support chat: POST/GET /api/v1/support/... (Bearer user token)\n" +
+        "Admin support: GET/POST /api/v1/admin/support/conversations/...\n" +
+        "Crisis flags: POST /api/v1/crisis-flags  GET /api/v1/admin/crisis-flags\n" +
         "Health: GET /health",
     );
   });
@@ -111,15 +216,45 @@ async function main() {
     res.json({ ok: true, mongo: mongoose.connection.readyState === 1 });
   });
 
+  registerEmailVerifyRoutes(app, {
+    EmailVerification,
+    User,
+    normalizeEmail,
+    isValidEmail,
+  });
+
+  registerPasswordResetRoutes(app, {
+    PasswordReset,
+    User,
+    normalizeEmail,
+    isValidEmail,
+  });
+
   app.post("/api/v1/auth/register", async (req, res) => {
     try {
       const email = normalizeEmail(req.body?.email);
       const password = String(req.body?.password || "");
+      const verificationToken = String(req.body?.verificationToken || "").trim();
       if (!isValidEmail(email)) {
         return res.status(400).json({ error: "Enter a valid email address." });
       }
       if (password.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters." });
+      }
+      if (!verificationToken) {
+        return res.status(400).json({
+          error: "Verify your email with the code we sent before creating an account.",
+        });
+      }
+      const verified = await assertEmailVerifiedForRegister(
+        EmailVerification,
+        email,
+        verificationToken,
+      );
+      if (!verified) {
+        return res.status(400).json({
+          error: "Email not verified or verification expired. Request a new code.",
+        });
       }
       const existing = await User.findOne({ email }).exec();
       if (existing) {
@@ -130,7 +265,9 @@ async function main() {
         email,
         passwordHash: hashPassword(password),
         sessionToken: token,
+        emailVerified: true,
       });
+      await EmailVerification.deleteOne({ email }).exec();
       res.status(201).json({ ok: true, email, token });
     } catch (err) {
       console.error(err);
@@ -207,6 +344,29 @@ async function main() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  registerHabitRoutes(app, {
+    HabitSnapshot,
+    requireAuth,
+    requireAdmin,
+    assertOwnUser,
+  });
+
+  const { createFlag: createCrisisFlag } = registerCrisisRoutes(app, {
+    CrisisFlag,
+    requireAuth,
+    requireAdmin,
+  });
+
+  registerSupportRoutes(app, {
+    SupportConversation,
+    SupportMessage,
+    requireAuth,
+    requireAdmin,
+    createCrisisFlag,
+  });
+
+  registerAdminRoutes(app, { User, UsageDay, HabitSnapshot });
 
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, "0.0.0.0", () => {

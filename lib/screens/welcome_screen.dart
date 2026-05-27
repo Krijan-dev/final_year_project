@@ -73,7 +73,7 @@ class WelcomeScreen extends StatelessWidget {
                   child: const Wrap(
                     spacing: 16,
                     runSpacing: 16,
-                    children: const [
+                    children: [
                       _FeatureCard(
                         title: "Daily Tracking",
                         description: "Measure total screen time and app activity each day.",
@@ -141,7 +141,7 @@ class WelcomeScreen extends StatelessWidget {
         const Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: const [
+          children: [
             Chip(label: Text("Screen Time")),
             Chip(label: Text("Insights")),
             Chip(label: Text("Focus Score")),

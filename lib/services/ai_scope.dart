@@ -12,10 +12,10 @@ abstract final class AiScope {
       "• Why is my focus score low?\n"
       "• How can I reduce screen time today?\n"
       "• Tips for better sleep habits\n"
-      "• What does my productivity score mean?\n\n"
+      "• What does my habit completion mean?\n"
+      "• Should I set a limit for social apps?\n\n"
       "Off-topic questions are not sent to AI (saves your API quota).";
 
-  /// Max length before we reject without calling the API (spam / pasted essays).
   static const int maxMessageLength = 400;
 
   static final RegExp _blocked = RegExp(
@@ -39,14 +39,29 @@ abstract final class AiScope {
 
   static final RegExp _allowed = RegExp(
     r"\b("
-    r"habit|routine|screen\s*time|phone|usage|app|distract|"
+    r"habit|routine|screen\s*time|phone|usage|app|apps|distract|scroll|"
+    r"limit|limits|cap|notification|alert|nudge|"
     r"sleep|bed|rest|tired|insomnia|"
     r"step|walk|exercise|workout|fitness|health\s*connect|"
-    r"focus|productive|productivity|score|metric|"
+    r"focus|productive|productivity|score|metric|streak|"
     r"mood|stress|anxiety|calm|meditat|"
-    r"water|break|pomodoro|goal|morning|evening|"
-    r"pattern|life\s*pattern|tracker|today|average|minute|hour|"
-    r"reduce|improve|better|less|more|why|how|tip|advice|suggest"
+    r"water|hydrat|break|pomodoro|goal|morning|evening|"
+    r"pattern|life\s*pattern|tracker|today|average|minute|hour|daily|weekly|"
+    r"reduce|improve|better|less|more|why|how|tip|advice|suggest|help|"
+    r"social|tiktok|instagram|youtube|game|games|"
+    r"log|logging|check|check-?in|complete|completion|progress|"
+    r"wellness|wellbeing|digital|balance"
+    r")\b",
+    caseSensitive: false,
+  );
+
+  /// Coach-style phrasing even when keywords are missing.
+  static final RegExp _coachIntent = RegExp(
+    r"\b("
+    r"my\s+(habit|screen|focus|mood|sleep|usage|time|score|streak|progress)|"
+    r"should\s+i|can\s+i|could\s+i|what\s+should|how\s+do\s+i|"
+    r"why\s+is|why\s+am|why\s+are|"
+    r"too\s+much|too\s+long|cut\s+down|cut\s+back"
     r")\b",
     caseSensitive: false,
   );
@@ -70,6 +85,7 @@ abstract final class AiScope {
     if (_greetingOnly.hasMatch(text)) return AiScopeDecision.greeting;
     if (_blocked.hasMatch(text)) return AiScopeDecision.offTopic;
     if (_allowed.hasMatch(text)) return AiScopeDecision.allowed;
+    if (_coachIntent.hasMatch(text)) return AiScopeDecision.allowed;
     return AiScopeDecision.offTopic;
   }
 

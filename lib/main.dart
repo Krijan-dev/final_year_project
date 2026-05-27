@@ -1,7 +1,7 @@
 import "dart:io";
 
-import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
@@ -10,17 +10,28 @@ import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/screens/home_shell.dart";
 import "package:life_pattern_tracker/screens/permission_onboarding_screen.dart";
 import "package:life_pattern_tracker/screens/welcome_screen.dart";
+import "package:life_pattern_tracker/services/gemini_key_store.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: "flutter.env");
+  } catch (_) {
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (_) {
+      // Use run_dev.ps1 or --dart-define-from-file=flutter.env
+    }
+  }
   await Hive.initFlutter();
-  await Hive.openBox<dynamic>("app_settings");
+  await Hive.openBox<dynamic>(kAppSettingsBoxName);
   runApp(const ProviderScope(child: LifePatternApp()));
 }
 
 class LifePatternApp extends ConsumerWidget {
   const LifePatternApp({super.key});
-//testing comment
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
@@ -30,11 +41,11 @@ class LifePatternApp extends ConsumerWidget {
     );
     final auth = ref.watch(authProvider);
     final lightScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF4F46E5),
+      seedColor: AppColors.green,
       brightness: Brightness.light,
     );
     final darkScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF6366F1),
+      seedColor: AppColors.green,
       brightness: Brightness.dark,
     );
 
@@ -45,7 +56,7 @@ class LifePatternApp extends ConsumerWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: lightScheme,
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
+        scaffoldBackgroundColor: Colors.transparent,
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -54,15 +65,17 @@ class LifePatternApp extends ConsumerWidget {
         ),
         appBarTheme: AppBarTheme(
           centerTitle: true,
-          backgroundColor: const Color(0xFFF6F7FB),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           foregroundColor: lightScheme.onSurface,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: Colors.white,
-          elevation: 1,
-          indicatorColor: lightScheme.primary.withValues(alpha: 0.16),
+          elevation: 2,
+          shadowColor: Colors.black26,
+          indicatorColor: AppColors.green.withValues(alpha: 0.18),
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
             final selected = states.contains(WidgetState.selected);
             return TextStyle(
@@ -87,24 +100,28 @@ class LifePatternApp extends ConsumerWidget {
       darkTheme: ThemeData(
         useMaterial3: true,
         colorScheme: darkScheme,
-        scaffoldBackgroundColor: const Color(0xFF0F1117),
+        scaffoldBackgroundColor: Colors.transparent,
         cardTheme: CardThemeData(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          color: const Color(0xFF1A1D28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: darkScheme.outlineVariant.withValues(alpha: 0.35)),
+          ),
+          color: const Color(0xFF232836),
           margin: EdgeInsets.zero,
         ),
         appBarTheme: AppBarTheme(
           centerTitle: true,
-          backgroundColor: const Color(0xFF0F1117),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           foregroundColor: darkScheme.onSurface,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
         navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF111420),
+          backgroundColor: const Color(0xFF111420).withValues(alpha: 0.92),
           elevation: 1,
-          indicatorColor: darkScheme.primary.withValues(alpha: 0.22),
+          indicatorColor: AppColors.green.withValues(alpha: 0.28),
           labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
             final selected = states.contains(WidgetState.selected);
             return TextStyle(
@@ -115,28 +132,32 @@ class LifePatternApp extends ConsumerWidget {
       ),
       home: Platform.isAndroid
           ? !permissionGate.$1
-              ? const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
+              ? const AppGradientBackground(
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: Center(child: CircularProgressIndicator()),
                   ),
                 )
               : !permissionGate.$2
-                  ? const PermissionOnboardingScreen()
+                  ? const AppGradientBackground(child: PermissionOnboardingScreen())
                   : !auth.ready
-                      ? const Scaffold(
-                          body: Center(
-                            child: CircularProgressIndicator(),
+                      ? const AppGradientBackground(
+                          child: Scaffold(
+                            backgroundColor: Colors.transparent,
+                            body: Center(child: CircularProgressIndicator()),
                           ),
                         )
                       : !auth.isSignedIn
-                          ? const WelcomeScreen()
+                          ? const AppGradientBackground(child: WelcomeScreen())
                           : const HomeShell()
-          : const Scaffold(
-              body: Center(
-                child: Text("Usage tracking is available only on Android."),
+          : const AppGradientBackground(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                body: Center(
+                  child: Text("Usage tracking is available only on Android."),
+                ),
               ),
             ),
     );
   }
 }
-//testing comment
