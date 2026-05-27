@@ -4,12 +4,12 @@ import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/cloud_sync_service.dart";
-import "package:life_pattern_tracker/screens/account_screen.dart";
-import "package:life_pattern_tracker/screens/apps_screen.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
+import "package:life_pattern_tracker/screens/more_hub_screen.dart";
 import "package:life_pattern_tracker/widgets/floating_chat_overlay.dart";
 import "package:life_pattern_tracker/screens/habit_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
+import "package:life_pattern_tracker/screens/screen_time_screen.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -58,10 +58,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final state = ref.watch(usageProvider);
     const pages = [
       DashboardScreen(),
+      ScreenTimeScreen(),
       HabitScreen(),
       InsightsScreen(),
-      AppsScreen(),
-      AccountScreen(),
+      MoreHubScreen(),
     ];
     final safeIndex = _index.clamp(0, pages.length - 1);
     if (safeIndex != _index) {
@@ -99,20 +99,61 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           const FloatingChatOverlay(),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: navBg,
-        surfaceTintColor: navBg,
-        elevation: 2,
-        shadowColor: Colors.black26,
-        selectedIndex: safeIndex,
-        onDestinationSelected: (index) => setState(() => _index = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
-          NavigationDestination(icon: Icon(Icons.check_circle_outline), label: "Habit"),
-          NavigationDestination(icon: Icon(Icons.insights_outlined), label: "Insights"),
-          NavigationDestination(icon: Icon(Icons.apps_outlined), label: "Apps"),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: "Account"),
-        ],
+      bottomNavigationBar: Theme(
+        data: Theme.of(context).copyWith(
+          navigationBarTheme: NavigationBarThemeData(
+            height: 68,
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                letterSpacing: 0.1,
+              );
+            }),
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              return IconThemeData(
+                size: states.contains(WidgetState.selected) ? 26 : 24,
+              );
+            }),
+          ),
+        ),
+        child: NavigationBar(
+          backgroundColor: navBg,
+          surfaceTintColor: navBg,
+          elevation: 2,
+          shadowColor: Colors.black26,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          selectedIndex: safeIndex,
+          onDestinationSelected: (index) => setState(() => _index = index),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: "Home",
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.smartphone_outlined),
+              selectedIcon: Icon(Icons.smartphone),
+              label: "Time",
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.check_circle_outline),
+              selectedIcon: Icon(Icons.check_circle),
+              label: "Habits",
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.insights_outlined),
+              selectedIcon: Icon(Icons.insights),
+              label: "Insights",
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.more_horiz),
+              selectedIcon: Icon(Icons.more_horiz),
+              label: "More",
+            ),
+          ],
+        ),
       ),
     );
   }

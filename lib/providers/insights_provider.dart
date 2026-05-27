@@ -4,6 +4,7 @@ import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
+import "package:life_pattern_tracker/services/insight_context_builder.dart";
 import "package:life_pattern_tracker/services/insights_engine.dart";
 
 class InsightsViewState {
@@ -100,15 +101,8 @@ class InsightsNotifier extends StateNotifier<InsightsViewState> {
     }
 
     try {
-      final lines = await GeminiService.generateInsightTips(
-        todayMinutes: metrics.screenMinutes,
-        averageMinutes: metrics.averageMinutes,
-        focusScore: metrics.focusScore,
-        productivityScore: metrics.productivityScore,
-        habitCompletionPercent: habitPct,
-        moodAverage: metrics.moodAverage,
-        ruleSummary: metrics.ruleInsights.join(" "),
-      );
+      final context = InsightContextBuilder.build(metrics: metrics, habits: habits);
+      final lines = await GeminiService.generateInsightTips(fullContext: context);
       final tips = InsightsEngine.tipsFromLines(lines);
       state = InsightsViewState(
         ready: habits.ready,

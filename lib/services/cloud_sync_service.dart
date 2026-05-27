@@ -5,6 +5,7 @@ import "package:life_pattern_tracker/services/habit_remote_service.dart";
 import "package:life_pattern_tracker/services/habit_tracker_storage_service.dart";
 import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
+import "package:life_pattern_tracker/utils/dev_spoof.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 
 /// Syncs local Hive data with MongoDB (pull on sign-in, push after changes).
@@ -14,6 +15,7 @@ abstract final class CloudSyncService {
   /// Download cloud usage + habits into local storage (e.g. after login on a new phone).
   static Future<bool> restoreFromCloud() async {
     if (!isConfigured) return false;
+    if (DevSpoof.enabled) return false; // In demo mode, keep local spoof data only.
     final token = AuthTokenStore.read();
     if (token.isEmpty) return false;
     final email = await AuthStorageService().getSessionEmail();
@@ -36,6 +38,7 @@ abstract final class CloudSyncService {
 
   static Future<void> pushAll() async {
     if (!isConfigured) return;
+    if (DevSpoof.enabled) return; // UI testing should not write to DB.
     final token = AuthTokenStore.read();
     if (token.isEmpty) return;
     final email = await AuthStorageService().getSessionEmail();

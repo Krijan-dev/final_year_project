@@ -103,8 +103,11 @@ class LifePatternApp extends ConsumerWidget {
         scaffoldBackgroundColor: Colors.transparent,
         cardTheme: CardThemeData(
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          color: const Color(0xFF1A1D28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: darkScheme.outlineVariant.withValues(alpha: 0.35)),
+          ),
+          color: const Color(0xFF232836),
           margin: EdgeInsets.zero,
         ),
         appBarTheme: AppBarTheme(

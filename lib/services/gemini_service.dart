@@ -33,23 +33,27 @@ Never answer off-topic questions, even briefly. No jokes, code, homework, news, 
 Keep replies under 80 words. Mention at most one metric when relevant.
 """;
 
-  static GenerativeModel _model(String modelName) {
+  static GenerativeModel _model(String modelName, {int maxOutputTokens = 180}) {
     return GenerativeModel(
       model: modelName,
       apiKey: resolvedApiKey,
       systemInstruction: Content.system(_coachSystemInstruction),
       generationConfig: GenerationConfig(
         temperature: 0.35,
-        maxOutputTokens: 180,
+        maxOutputTokens: maxOutputTokens,
       ),
     );
   }
 
-  static Future<String> _generateWithFallback(String prompt) async {
+  static Future<String> _generateWithFallback(
+    String prompt, {
+    int maxOutputTokens = 180,
+  }) async {
     Object? lastError;
     for (final modelName in _modelCandidates) {
       try {
-        final result = await _model(modelName).generateContent([Content.text(prompt)]);
+        final result = await _model(modelName, maxOutputTokens: maxOutputTokens)
+            .generateContent([Content.text(prompt)]);
         final text = result.text?.trim();
         if (text != null && text.isNotEmpty) {
           return text;
@@ -185,44 +189,37 @@ Metrics:
     return text.isNotEmpty ? text : "Keep tracking habits and screen time to spot patterns.";
   }
 
-  /// AI insight tips for the Insights tab (2–3 items).
+  /// AI insight tips for the Insights tab (2–4 items).
   static Future<List<String>> generateInsightTips({
-    required int todayMinutes,
-    required int averageMinutes,
-    required int focusScore,
-    required int productivityScore,
-    required int habitCompletionPercent,
-    required double? moodAverage,
-    required String ruleSummary,
+    required String fullContext,
   }) async {
     if (!isConfigured) return [];
 
-    final moodLine = moodAverage != null
-        ? "Mood average: ${moodAverage.toStringAsFixed(1)}/10."
-        : "No mood logged this week.";
-
     final prompt = """
-Create exactly 2 personalized wellness insights for this user.
-Use ONLY the metrics below. Each line must use format: TITLE|DESCRIPTION
-- TITLE max 6 words, DESCRIPTION max 22 words
-- no numbering, no markdown, no bullets
+You are a wellness coach inside a habit and screen-time tracking app.
+Read the user's data below and create exactly 3 personalized insights.
+Each insight must connect screen time patterns with habits or mood when possible.
+Be specific (name apps, hours, or habit names when relevant). Do not invent data not in the context.
 
-Metrics:
-- Today screen minutes: $todayMinutes
-- Average daily minutes: $averageMinutes
-- Focus score: $focusScore
-- Productivity score: $productivityScore
-- Habit completion %: $habitCompletionPercent
-- $moodLine
-- Context: $ruleSummary
+Output format — one insight per line:
+TITLE|DESCRIPTION
+- TITLE: max 6 words
+- DESCRIPTION: max 28 words, one actionable sentence
+- no numbering, no markdown, no bullets, no extra pipes in TITLE
+
+User data:
+$fullContext
 """;
 
-    final raw = await _generateWithFallback(prompt);
+    final raw = await _generateWithFallback(
+      prompt,
+      maxOutputTokens: 420,
+    );
     return raw
         .split("\n")
         .map((e) => e.replaceFirst(RegExp(r"^\s*[-*]\s*"), "").trim())
         .where((e) => e.isNotEmpty && e.contains("|"))
-        .take(3)
+        .take(4)
         .toList();
   }
 }

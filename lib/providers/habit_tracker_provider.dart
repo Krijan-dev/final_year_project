@@ -13,6 +13,7 @@ import "package:life_pattern_tracker/services/habit_remote_service.dart";
 import "package:life_pattern_tracker/services/habit_tracker_storage_service.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
+import "package:life_pattern_tracker/utils/dev_spoof.dart";
 
 class HabitTrackerState {
   const HabitTrackerState({
@@ -109,6 +110,14 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   Future<void> _load() async {
     final raw = await _storage.loadRaw();
     final currentWeek = WeekCalendar.weekKey;
+
+    // In spoof mode we always show spoofed weekly data (even if Hive already
+    // has older real/spoofed data).
+    if (DevSpoof.enabled) {
+      state = _spoofWeekState(DevSpoof.level);
+      await _persist();
+      return;
+    }
     if (raw == null) {
       state = _freshWeekState();
       await _persist();
@@ -149,6 +158,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   }
 
   Future<void> _syncToCloud() async {
+    if (DevSpoof.enabled) return; // Don't pollute MongoDB while testing UI.
     if (!_habitRemote.isConfigured) return;
     final email = await _authStorage.getSessionEmail();
     if (email == null) return;
@@ -173,6 +183,172 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
         moodDays: _defaultMoodDays(),
         logs: const [],
       );
+
+  static HabitTrackerState _spoofWeekState(DevSpoofLevel level) {
+    final labels = WeekCalendar.currentWeekDayLabels();
+    // Completion patterns so weekly progress isn't always 0/100.
+    List<bool> completedFor(String habitId) {
+      switch (level) {
+        case DevSpoofLevel.best:
+          return switch (habitId) {
+            "sleep" => <bool>[false, false, true, true, false, false, true],
+            "exercise" => <bool>[false, true, false, true, true, false, false],
+            "water" => <bool>[true, true, false, false, true, true, false],
+            "read" => <bool>[false, false, true, false, false, false, true],
+            "meditate" => <bool>[true, false, true, false, true, false, false],
+            "mood" => <bool>[false, true, true, false, false, true, true],
+            _ => <bool>[false, false, false, false, false, false, false],
+          };
+        case DevSpoofLevel.medium:
+          return switch (habitId) {
+            "sleep" => <bool>[false, true, false, true, false, true, false],
+            "exercise" => <bool>[false, false, true, false, true, false, false],
+            "water" => <bool>[true, false, true, false, true, false, true],
+            "read" => <bool>[false, false, false, true, false, false, true],
+            "meditate" => <bool>[true, false, false, true, false, true, false],
+            "mood" => <bool>[false, true, false, false, true, false, true],
+            _ => <bool>[false, false, false, false, false, false, false],
+          };
+        case DevSpoofLevel.bad:
+          return switch (habitId) {
+            "sleep" => <bool>[false, false, false, true, false, false, false],
+            "exercise" => <bool>[false, false, false, false, true, false, false],
+            "water" => <bool>[false, true, false, false, false, false, true],
+            "read" => <bool>[false, false, false, false, false, false, true],
+            "meditate" => <bool>[false, false, true, false, false, false, false],
+            "mood" => <bool>[false, false, false, true, false, false, false],
+            _ => <bool>[false, false, false, false, false, false, false],
+          };
+        case DevSpoofLevel.off:
+          return <bool>[false, false, false, false, false, false, false];
+      }
+    }
+
+    final habits = _defaultHabits().map((h) {
+      return HabitTrackerHabit(
+        id: h.id,
+        name: h.name,
+        emoji: h.emoji,
+        iconBackground: h.iconBackground,
+        weekCompleted: completedFor(h.id),
+      );
+    }).toList();
+
+    final moodScores = switch (level) {
+      DevSpoofLevel.best => <double>[9, 8, 9, 7, 6, 8, 9],
+      DevSpoofLevel.medium => <double>[7, 6, 7, 6, 5, 6, 7],
+      DevSpoofLevel.bad => <double>[4, 3, 5, 4, 2, 3, 4],
+      DevSpoofLevel.off => <double>[0, 0, 0, 0, 0, 0, 0],
+    };
+    MoodDay moodDayFor(int i) {
+      final score = moodScores[i].clamp(0.0, 10.0);
+      final typeId = switch (score) {
+        >= 9 => "great",
+        >= 8 => "good",
+        >= 7 => "calm",
+        >= 6 => "okay",
+        >= 5 => "tired",
+        >= 4 => "stressed",
+        >= 3 => "sad",
+        _ => "angry",
+      };
+      final type = MoodTypes.byId(typeId) ?? MoodTypes.all.first;
+      return MoodDay(
+        label: labels[i],
+        emoji: type.emoji,
+        score: score,
+        moodTypeId: type.id,
+        moodTypeLabel: type.label,
+      );
+    }
+
+    final moodDays = List<MoodDay>.generate(
+      7,
+      (i) => moodDayFor(i),
+    );
+
+    final ms = DateTime.now().millisecondsSinceEpoch.toString();
+    final logs = switch (level) {
+      DevSpoofLevel.best => <TodayLogEntry>[
+          TodayLogEntry(
+            id: "spoof-$ms-meditation",
+            activityKey: "meditation",
+            emoji: "🧘",
+            title: "Meditation",
+            subtitle: "15 min",
+            timeLabel: "07:20 AM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+          TodayLogEntry(
+            id: "spoof-$ms-water",
+            activityKey: "water",
+            emoji: "💧",
+            title: "Drink Water",
+            subtitle: "250 ml",
+            timeLabel: "10:15 AM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+          TodayLogEntry(
+            id: "spoof-$ms-workout",
+            activityKey: "workout",
+            emoji: "💪",
+            title: "Workout",
+            subtitle: "30 min",
+            timeLabel: "06:00 PM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+          TodayLogEntry(
+            id: "spoof-$ms-mood",
+            activityKey: "mood",
+            emoji: "😊",
+            title: "Mood Check",
+            subtitle: "Checked in",
+            timeLabel: "09:30 PM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+        ],
+      DevSpoofLevel.medium => <TodayLogEntry>[
+          TodayLogEntry(
+            id: "spoof-$ms-water",
+            activityKey: "water",
+            emoji: "💧",
+            title: "Drink Water",
+            subtitle: "200 ml",
+            timeLabel: "11:10 AM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+          TodayLogEntry(
+            id: "spoof-$ms-mood",
+            activityKey: "mood",
+            emoji: "🙂",
+            title: "Mood Check",
+            subtitle: "Okay day",
+            timeLabel: "08:45 PM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+        ],
+      DevSpoofLevel.bad => <TodayLogEntry>[
+          TodayLogEntry(
+            id: "spoof-$ms-mood",
+            activityKey: "mood",
+            emoji: "😔",
+            title: "Mood Check",
+            subtitle: "Low energy",
+            timeLabel: "09:00 PM",
+            dateKey: WeekCalendar.todayKey,
+          ),
+        ],
+      DevSpoofLevel.off => <TodayLogEntry>[],
+    };
+
+    return HabitTrackerState(
+      ready: true,
+      weekKey: WeekCalendar.weekKey,
+      habits: habits,
+      moodDays: moodDays,
+      logs: logs,
+    );
+  }
 
   static List<HabitTrackerHabit> _defaultHabits() => [
         HabitTrackerHabit(

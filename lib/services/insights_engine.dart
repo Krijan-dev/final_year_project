@@ -260,7 +260,7 @@ abstract final class InsightsEngine {
         SmartRecommendation(
           title: "Reduce distracting apps",
           description: "Focus score is ${metrics.focusScore}/100 — social apps may be pulling attention.",
-          hint: "Check Top apps on Apps tab",
+          hint: "See Screen time tab for app breakdown",
           icon: Icons.phonelink_off_outlined,
           iconColor: Color(0xFFEA580C),
           background: Color(0xFFFFFBEB),
@@ -337,16 +337,40 @@ abstract final class InsightsEngine {
   }
 
   static List<AiInsightTip> fallbackAiTips(DashboardMetrics metrics, int habitPct) {
-    return [
+    final topApp = metrics.topApps.isNotEmpty ? metrics.topApps.first : null;
+    final weekTrend = metrics.weekOverWeekScreenPercent;
+    final tips = <AiInsightTip>[
       AiInsightTip(
         title: "Peak usage window",
         description: metrics.peakHourLabel ??
-            "Track hourly usage on the Apps tab to find busy periods.",
+            "Open the Screen time tab to see hourly usage patterns.",
         hint: "Calculated insight",
         icon: Icons.schedule,
         iconColor: const Color(0xFF7C3AED),
         background: const Color(0xFFEFF6FF),
       ),
+      if (topApp != null)
+        AiInsightTip(
+          title: "Top app today",
+          description:
+              "${topApp.appName} leads usage (${formatMinutes(topApp.usageTime)}). "
+              "Check category mix on Screen time.",
+          hint: "Calculated insight",
+          icon: Icons.apps_outlined,
+          iconColor: const Color(0xFF2563EB),
+          background: const Color(0xFFEFF6FF),
+        ),
+      if (weekTrend != null && weekTrend.abs() >= 5)
+        AiInsightTip(
+          title: weekTrend > 0 ? "Usage trending up" : "Usage trending down",
+          description: weekTrend > 0
+              ? "Screen time is about $weekTrend% higher than last week's average."
+              : "Screen time is about ${weekTrend.abs()}% lower than last week — nice progress.",
+          hint: "Calculated insight",
+          icon: Icons.trending_up,
+          iconColor: const Color(0xFF7C3AED),
+          background: const Color(0xFFF3E8FF),
+        ),
       AiInsightTip(
         title: "Habit focus",
         description: habitPct >= 60
@@ -358,5 +382,6 @@ abstract final class InsightsEngine {
         background: const Color(0xFFF3E8FF),
       ),
     ];
+    return tips.take(3).toList();
   }
 }
