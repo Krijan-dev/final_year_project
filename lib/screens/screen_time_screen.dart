@@ -14,6 +14,7 @@ import "package:life_pattern_tracker/widgets/app_icon_widget.dart";
 import "package:life_pattern_tracker/widgets/app_usage_tile.dart";
 import "package:life_pattern_tracker/widgets/usage_bar_chart.dart";
 import "package:life_pattern_tracker/models/app_screen_time_limit.dart";
+import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
 const Color _kGreen = Color(0xFF22C55E);
 const Color _kGreenDark = Color(0xFF16A34A);
@@ -979,9 +980,16 @@ class _ScreenTimeHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Screen time",
-          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Screen time",
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const AccountAvatarButton(),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -1049,7 +1057,7 @@ class _TodayHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final goal = DashboardMetricsService.dailyScreenTimeGoalMinutes;
+    const goal = DashboardMetricsService.dailyScreenTimeGoalMinutes;
     final progress = metrics.screenProgress.clamp(0.0, 1.0);
 
     return Container(

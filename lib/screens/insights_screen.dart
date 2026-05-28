@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/models/insight_models.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
+import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
 const Color _kHealthGreen = Color(0xFF34D399);
 const Color _kHealthGreenDark = Color(0xFF22C55E);
@@ -36,7 +37,7 @@ class InsightsScreen extends ConsumerWidget {
             overallScore: state.overallWellnessScore,
           ),
           const SizedBox(height: 20),
-          _SectionTitle(
+          const _SectionTitle(
             icon: Icons.analytics_outlined,
             iconColor: Colors.teal,
             title: "Smart Recommendations",
@@ -55,7 +56,7 @@ class InsightsScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           _SectionTitle(
             icon: Icons.auto_awesome,
-            iconColor: Color(0xFF7C3AED),
+            iconColor: const Color(0xFF7C3AED),
             title: "AI Insights",
             badge: view.aiUsesGemini
                 ? "Gemini"
@@ -82,7 +83,7 @@ class InsightsScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 8),
-          _SectionTitle(
+          const _SectionTitle(
             icon: Icons.trending_up,
             iconColor: Color(0xFF2563EB),
             title: "Weekly Trends",
@@ -128,9 +129,16 @@ class _InsightsHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Insights",
-          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Insights",
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const AccountAvatarButton(),
+          ],
         ),
         const SizedBox(height: 4),
         Text(

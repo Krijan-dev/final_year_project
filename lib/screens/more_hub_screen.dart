@@ -26,7 +26,7 @@ class MoreHubScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          "Health data and wellness connections.",
+          "Health data, sync, and settings.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

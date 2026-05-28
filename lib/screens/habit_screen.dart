@@ -12,6 +12,7 @@ import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/screens/habit_detail_screen.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
+import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
 const Color _kHabitGreen = Color(0xFF34D399);
 const Color _kHabitGreenDark = Color(0xFF22C55E);
@@ -617,11 +618,18 @@ class _HabitHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Habit Tracker",
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Habit Tracker",
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const AccountAvatarButton(),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
