@@ -45,6 +45,79 @@ class AccountScreen extends ConsumerWidget {
       }
     }
 
+    Future<void> showDeleteAccountDialog() async {
+      final theme = Theme.of(context);
+      final controller = TextEditingController();
+      try {
+        final confirmed = await showDialog<bool>(
+          context: context,
+          useRootNavigator: true,
+          builder: (ctx) {
+            var errorText = "";
+            return StatefulBuilder(
+              builder: (ctx, setState) => AlertDialog(
+                title: const Text("Delete account?"),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "This permanently deletes your account and all synced data (usage days, habit snapshots, support chats). This cannot be undone.",
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: "Confirm password",
+                        errorText: errorText.isEmpty ? null : errorText,
+                      ),
+                      onSubmitted: (_) => Navigator.of(ctx).pop(true),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text("Cancel"),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.error,
+                      foregroundColor: theme.colorScheme.onError,
+                    ),
+                    onPressed: () {
+                      final pw = controller.text.trim();
+                      if (pw.isEmpty) {
+                        setState(() => errorText = "Password is required.");
+                        return;
+                      }
+                      Navigator.pop(ctx, true);
+                    },
+                    child: const Text("Delete"),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+        if (confirmed != true) return;
+        final pw = controller.text.trim();
+        final err = await ref.read(authProvider.notifier).deleteAccount(password: pw);
+        if (!context.mounted) return;
+        if (err != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account deleted.")),
+        );
+      } finally {
+        controller.dispose();
+      }
+    }
+
     return RefreshIndicator(
       onRefresh: refreshAll,
       child: ListView(
@@ -271,6 +344,20 @@ class AccountScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          if (apiReady && auth.isSignedIn)
+            _SectionCard(
+              title: "Danger zone",
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.delete_forever, color: theme.colorScheme.error),
+                  title: const Text("Delete account"),
+                  subtitle: const Text("Permanently delete your account and synced data"),
+                  onTap: showDeleteAccountDialog,
+                ),
+              ],
+            ),
           const SizedBox(height: 16),
           Center(
             child: Text(
