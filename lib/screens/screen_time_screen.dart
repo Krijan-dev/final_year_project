@@ -1015,7 +1015,8 @@ class _PermissionCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              "Android needs Usage Access permission to read screen time and app usage.",
+              "Android needs Usage Access permission to read screen time and app usage. "
+              "This is enabled in Android Settings (not a standard in-app popup).",
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -1024,7 +1025,7 @@ class _PermissionCard extends StatelessWidget {
             FilledButton.icon(
               onPressed: () => ref.read(usageProvider.notifier).openUsageSettings(),
               icon: const Icon(Icons.settings),
-              label: const Text("Open Usage Access Settings"),
+              label: const Text("Grant permission (opens Settings)"),
             ),
             const SizedBox(height: 8),
             OutlinedButton(

@@ -19,10 +19,30 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   String? _lastCloudSyncEmail;
   bool _cloudSyncRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Usage Access is granted in Android settings, so re-check when user returns.
+      ref.read(usageProvider.notifier).checkPermission();
+    }
+  }
 
   Future<void> _restoreFromCloudAndRefresh() async {
     if (_cloudSyncRunning) return;
@@ -99,60 +119,64 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           const FloatingChatOverlay(),
         ],
       ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          navigationBarTheme: NavigationBarThemeData(
-            height: 68,
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              final selected = states.contains(WidgetState.selected);
-              return TextStyle(
-                fontSize: 11,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                letterSpacing: 0.1,
-              );
-            }),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              return IconThemeData(
-                size: states.contains(WidgetState.selected) ? 26 : 24,
-              );
-            }),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 4),
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            navigationBarTheme: NavigationBarThemeData(
+              height: 64,
+              labelTextStyle: WidgetStateProperty.resolveWith((states) {
+                final selected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  letterSpacing: 0.1,
+                );
+              }),
+              iconTheme: WidgetStateProperty.resolveWith((states) {
+                return IconThemeData(
+                  size: states.contains(WidgetState.selected) ? 26 : 24,
+                );
+              }),
+            ),
           ),
-        ),
-        child: NavigationBar(
-          backgroundColor: navBg,
-          surfaceTintColor: navBg,
-          elevation: 2,
-          shadowColor: Colors.black26,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          selectedIndex: safeIndex,
-          onDestinationSelected: (index) => setState(() => _index = index),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: "Home",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.smartphone_outlined),
-              selectedIcon: Icon(Icons.smartphone),
-              label: "Time",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.check_circle_outline),
-              selectedIcon: Icon(Icons.check_circle),
-              label: "Habits",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights),
-              label: "Insights",
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.more_horiz),
-              selectedIcon: Icon(Icons.more_horiz),
-              label: "More",
-            ),
-          ],
+          child: NavigationBar(
+            backgroundColor: navBg,
+            surfaceTintColor: navBg,
+            elevation: 2,
+            shadowColor: Colors.black26,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            selectedIndex: safeIndex,
+            onDestinationSelected: (index) => setState(() => _index = index),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home),
+                label: "Home",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.smartphone_outlined),
+                selectedIcon: Icon(Icons.smartphone),
+                label: "Time",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.check_circle_outline),
+                selectedIcon: Icon(Icons.check_circle),
+                label: "Habits",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.insights_outlined),
+                selectedIcon: Icon(Icons.insights),
+                label: "Insights",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.more_horiz),
+                selectedIcon: Icon(Icons.more_horiz),
+                label: "More",
+              ),
+            ],
+          ),
         ),
       ),
     );
