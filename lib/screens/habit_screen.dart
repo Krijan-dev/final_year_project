@@ -42,6 +42,14 @@ class HabitScreen extends ConsumerWidget {
           _WeeklyProgressCard(
             percent: state.weeklyProgressPercent,
             message: state.weeklyProgressMessage,
+            habits: state.habits,
+            onOpenHabit: (habitId) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => HabitDetailScreen(habitId: habitId),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           _ThisWeeksHabitsCard(
@@ -370,10 +378,11 @@ class _AddLogSheetState extends ConsumerState<_AddLogSheet> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _timeCtrl,
+                  readOnly: true,
+                  onTap: _pickTime,
                   decoration: InputDecoration(
                     labelText: "Time",
                     hintText: "e.g. 7:30 AM",
-                    border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
                       icon: const Icon(Icons.schedule),
                       tooltip: "Pick time",
@@ -627,10 +636,17 @@ class _HabitHeader extends StatelessWidget {
 }
 
 class _WeeklyProgressCard extends StatelessWidget {
-  const _WeeklyProgressCard({required this.percent, required this.message});
+  const _WeeklyProgressCard({
+    required this.percent,
+    required this.message,
+    required this.habits,
+    required this.onOpenHabit,
+  });
 
   final int percent;
   final String message;
+  final List<HabitTrackerHabit> habits;
+  final void Function(String habitId) onOpenHabit;
 
   @override
   Widget build(BuildContext context) {
@@ -692,6 +708,24 @@ class _WeeklyProgressCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.9),
                       ),
                 ),
+                const SizedBox(height: 10),
+                if (habits.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _HabitQuickJumpChip(
+                        title: "Top habit",
+                        habit: _bestHabit(habits),
+                        onTap: () => onOpenHabit(_bestHabit(habits).id),
+                      ),
+                      _HabitQuickJumpChip(
+                        title: "Needs focus",
+                        habit: _lowestHabit(habits),
+                        onTap: () => onOpenHabit(_lowestHabit(habits).id),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -706,6 +740,65 @@ class _WeeklyProgressCard extends StatelessWidget {
             child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 28),
           ),
         ],
+      ),
+    );
+  }
+
+  HabitTrackerHabit _bestHabit(List<HabitTrackerHabit> list) {
+    var best = list.first;
+    for (final h in list) {
+      if (h.percent > best.percent) best = h;
+    }
+    return best;
+  }
+
+  HabitTrackerHabit _lowestHabit(List<HabitTrackerHabit> list) {
+    var lowest = list.first;
+    for (final h in list) {
+      if (h.percent < lowest.percent) lowest = h;
+    }
+    return lowest;
+  }
+}
+
+class _HabitQuickJumpChip extends StatelessWidget {
+  const _HabitQuickJumpChip({
+    required this.title,
+    required this.habit,
+    required this.onTap,
+  });
+
+  final String title;
+  final HabitTrackerHabit habit;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(habit.emoji),
+              const SizedBox(width: 6),
+              Text(
+                "$title: ${habit.name}",
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right, size: 14, color: Colors.white),
+            ],
+          ),
+        ),
       ),
     );
   }

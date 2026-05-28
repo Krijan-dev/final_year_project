@@ -7,6 +7,7 @@ import "package:health/health.dart";
 import "package:life_pattern_tracker/data/habit_log_presets.dart";
 import "package:life_pattern_tracker/models/habit_tracker_habit.dart";
 import "package:life_pattern_tracker/models/habit_log_preset.dart";
+import "package:life_pattern_tracker/models/mood_day.dart";
 import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
@@ -39,6 +40,7 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(habitTrackerProvider);
+    final notifier = ref.read(habitTrackerProvider.notifier);
     HabitTrackerHabit? habit;
     for (final h in state.habits) {
       if (h.id == widget.habitId) {
@@ -89,7 +91,16 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
         children: [
           _HeroHabitCard(habit: selectedHabit),
           const SizedBox(height: 14),
-          _WeeklyStatusCard(habit: selectedHabit),
+          _ConnectedMetricsCard(
+            habit: selectedHabit,
+            allLogs: state.logs,
+            moodDays: state.moodDays,
+          ),
+          const SizedBox(height: 14),
+          _WeeklyStatusCard(
+            habit: selectedHabit,
+            onToggleDay: (dayIndex) => notifier.toggleHabitDay(selectedHabit.id, dayIndex),
+          ),
           const SizedBox(height: 14),
           _HabitTrendCard(
             habit: selectedHabit,
@@ -103,8 +114,6 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
             dismissedIds: _dismissedInsightIds,
             onDismiss: (id) => setState(() => _dismissedInsightIds.add(id)),
           ),
-          const SizedBox(height: 14),
-          _ConnectedMetricsCard(habit: selectedHabit),
         ],
       ),
     );
@@ -305,6 +314,16 @@ class _QuickHabitAddSheetState extends ConsumerState<_QuickHabitAddSheet> {
     return "$y-$m-$d";
   }
 
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (picked != null && mounted) {
+      _timeCtrl.text = picked.format(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -367,9 +386,16 @@ class _QuickHabitAddSheetState extends ConsumerState<_QuickHabitAddSheet> {
               const SizedBox(height: 10),
               TextField(
                 controller: _timeCtrl,
-                decoration: const InputDecoration(
+                readOnly: true,
+                onTap: _pickTime,
+                decoration: InputDecoration(
                   labelText: "Time",
                   hintText: "e.g. 7:30 AM",
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.schedule),
+                    tooltip: "Pick time",
+                    onPressed: _pickTime,
+                  ),
                 ),
               ),
             ],
@@ -537,9 +563,13 @@ class _HeroStat extends StatelessWidget {
 }
 
 class _WeeklyStatusCard extends StatelessWidget {
-  const _WeeklyStatusCard({required this.habit});
+  const _WeeklyStatusCard({
+    required this.habit,
+    this.onToggleDay,
+  });
 
   final HabitTrackerHabit habit;
+  final void Function(int dayIndex)? onToggleDay;
 
   @override
   Widget build(BuildContext context) {
@@ -555,6 +585,13 @@ class _WeeklyStatusCard extends StatelessWidget {
               "This week",
               style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
+            const SizedBox(height: 4),
+            Text(
+              onToggleDay != null ? "Tap a day to update progress" : "Weekly completion status",
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               children: List.generate(7, (i) {
@@ -565,22 +602,25 @@ class _WeeklyStatusCard extends StatelessWidget {
                     padding: EdgeInsets.only(left: i == 0 ? 0 : 4),
                     child: Column(
                       children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: done
-                                ? const Color(0xFF3B82F6)
-                                : theme.colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                            border: isToday
-                                ? Border.all(color: const Color(0xFF2563EB), width: 2)
+                        GestureDetector(
+                          onTap: onToggleDay == null ? null : () => onToggleDay!(i),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: done
+                                  ? const Color(0xFF3B82F6)
+                                  : theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isToday
+                                  ? Border.all(color: const Color(0xFF2563EB), width: 2)
+                                  : null,
+                            ),
+                            alignment: Alignment.center,
+                            child: done
+                                ? const Icon(Icons.check, size: 15, color: Colors.white)
                                 : null,
                           ),
-                          alignment: Alignment.center,
-                          child: done
-                              ? const Icon(Icons.check, size: 15, color: Colors.white)
-                              : null,
                         ),
                         const SizedBox(height: 6),
                         Text(
@@ -880,9 +920,15 @@ class _HabitLogsCard extends StatelessWidget {
 }
 
 class _ConnectedMetricsCard extends StatefulWidget {
-  const _ConnectedMetricsCard({required this.habit});
+  const _ConnectedMetricsCard({
+    required this.habit,
+    required this.allLogs,
+    required this.moodDays,
+  });
 
   final HabitTrackerHabit habit;
+  final List<TodayLogEntry> allLogs;
+  final List<MoodDay> moodDays;
 
   @override
   State<_ConnectedMetricsCard> createState() => _ConnectedMetricsCardState();
@@ -901,6 +947,25 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
   }
 
   bool get _supportsImport => widget.habit.id == "exercise" || widget.habit.id == "sleep";
+
+  double _habitTotalFromLogs() {
+    var total = 0.0;
+    for (final e in widget.allLogs) {
+      if (HabitTrackerNotifier.mapLogKeyToHabitId(e.activityKey) != widget.habit.id) continue;
+      final unit = HabitLogDetailsFormatter.unitForActivityKey(e.activityKey, e.title);
+      switch (unit) {
+        case HabitLogAmountUnit.minutes:
+          total += HabitLogDetailsFormatter.minutesFromSubtitle(e.subtitle);
+        case HabitLogAmountUnit.glasses:
+          total += HabitLogDetailsFormatter.glassesFromSubtitle(e.subtitle);
+        case HabitLogAmountUnit.hours:
+          total += HabitLogDetailsFormatter.hoursFromSubtitle(e.subtitle);
+        case HabitLogAmountUnit.freeText:
+          total += 1;
+      }
+    }
+    return total;
+  }
 
   Future<void> _loadIfSupported() async {
     if (!_supportsImport || !Platform.isAndroid) return;
@@ -986,12 +1051,7 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
             ),
             const SizedBox(height: 10),
             if (!_supportsImport)
-              Text(
-                "No connected metrics mapped for this habit yet.",
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              )
+              _buildHabitNativeMetrics(theme)
             else if (!Platform.isAndroid)
               Text(
                 "Connected metrics are available on Android only.",
@@ -1034,6 +1094,115 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
         ),
       ),
     );
+  }
+
+  Widget _buildHabitNativeMetrics(ThemeData theme) {
+    final total = _habitTotalFromLogs();
+    switch (widget.habit.id) {
+      case "water":
+        final glasses = total.round();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetricPanel(
+              title: "Water today",
+              value: "$glasses glasses",
+              hint: "From your habit log entries",
+            ),
+            const SizedBox(height: 12),
+            _FactorBar(
+              label: "Hydration target",
+              valueText: "${((glasses / 8) * 100).clamp(0, 100).round()}%",
+              progress: (glasses / 8).clamp(0.0, 1.0),
+              barColor: const Color(0xFF06B6D4),
+            ),
+          ],
+        );
+      case "read":
+        final hours = total;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetricPanel(
+              title: "Reading today",
+              value: "${hours.toStringAsFixed(hours >= 1 ? 1 : 2)} h",
+              hint: "From your reading log entries",
+            ),
+            const SizedBox(height: 12),
+            _FactorBar(
+              label: "Daily reading target",
+              valueText: "${((hours / 1.5) * 100).clamp(0, 100).round()}%",
+              progress: (hours / 1.5).clamp(0.0, 1.0),
+              barColor: const Color(0xFF8B5CF6),
+            ),
+          ],
+        );
+      case "meditate":
+        final minutes = total.round();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetricPanel(
+              title: "Meditation today",
+              value: "$minutes min",
+              hint: "From your mindfulness log entries",
+            ),
+            const SizedBox(height: 12),
+            _FactorBar(
+              label: "Mindfulness target",
+              valueText: "${((minutes / 20) * 100).clamp(0, 100).round()}%",
+              progress: (minutes / 20).clamp(0.0, 1.0),
+              barColor: const Color(0xFF7C3AED),
+            ),
+          ],
+        );
+      case "mood":
+        double avg = 0;
+        var count = 0;
+        for (final d in widget.moodDays) {
+          final s = (d.score as num?)?.toDouble() ?? 0;
+          if (s > 0) {
+            avg += s;
+            count++;
+          }
+        }
+        if (count > 0) avg /= count;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetricPanel(
+              title: "Mood average",
+              value: count == 0 ? "—" : "${avg.toStringAsFixed(1)} / 10",
+              hint: "Based on this week's mood check-ins",
+            ),
+            const SizedBox(height: 12),
+            _FactorBar(
+              label: "Check-in consistency",
+              valueText: "${widget.habit.percent}%",
+              progress: widget.habit.percent / 100,
+              barColor: const Color(0xFFEC4899),
+            ),
+          ],
+        );
+      default:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MetricPanel(
+              title: "Habit activity",
+              value: "${total.round()} entries",
+              hint: "From your current-week habit logs",
+            ),
+            const SizedBox(height: 12),
+            _FactorBar(
+              label: "Consistency",
+              valueText: "${widget.habit.percent}%",
+              progress: widget.habit.percent / 100,
+              barColor: const Color(0xFF2563EB),
+            ),
+          ],
+        );
+    }
   }
 }
 

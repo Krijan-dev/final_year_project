@@ -53,6 +53,7 @@ abstract final class HabitLogPresets {
       label: "Sleep",
       title: "Sleep",
       amountUnit: HabitLogAmountUnit.hours,
+      timeOptional: true,
     ),
     HabitLogPreset(
       id: "read",
@@ -67,6 +68,7 @@ abstract final class HabitLogPresets {
       label: "Mood check",
       title: "Mood check-in",
       amountUnit: HabitLogAmountUnit.freeText,
+      timeOptional: true,
     ),
     HabitLogPreset(
       id: "screen_break",
