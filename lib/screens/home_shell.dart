@@ -5,14 +5,12 @@ import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 import "package:life_pattern_tracker/screens/dashboard_screen.dart";
-import "package:life_pattern_tracker/screens/more_hub_screen.dart";
+import "package:life_pattern_tracker/screens/health_screen.dart";
 import "package:life_pattern_tracker/widgets/floating_chat_overlay.dart";
 import "package:life_pattern_tracker/screens/habit_screen.dart";
 import "package:life_pattern_tracker/screens/insights_screen.dart";
 import "package:life_pattern_tracker/screens/screen_time_screen.dart";
-import "package:life_pattern_tracker/screens/account_screen.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
-import "package:life_pattern_tracker/widgets/subpage_scaffold.dart";
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -73,17 +71,6 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     });
   }
 
-  void _openAccount() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const SubpageScaffold(
-          title: "Account",
-          child: AccountScreen(embeddedInSubpage: true),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -94,7 +81,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       ScreenTimeScreen(),
       HabitScreen(),
       InsightsScreen(),
-      MoreHubScreen(),
+      HealthScreen(),
     ];
     final safeIndex = _index.clamp(0, pages.length - 1);
     if (safeIndex != _index) {
@@ -115,7 +102,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
           AppGradientBackground(
             dark: isDark,
             child: SafeArea(
-              bottom: false,
+              bottom: true,
               child: Column(
                 children: [
                   if (state.syncing) const LinearProgressIndicator(minHeight: 2),
@@ -130,42 +117,6 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
             ),
           ),
           const FloatingChatOverlay(),
-          Positioned(
-            top: 10,
-            right: 12,
-            child: SafeArea(
-              bottom: false,
-              child: Material(
-                color: Colors.transparent,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  onTap: _openAccount,
-                  customBorder: const CircleBorder(),
-                  child: Ink(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF60A5FA), Color(0xFF2563EB)],
-                      ),
-                      border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x4D1D4ED8),
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.lock_outline, color: Colors.white, size: 19),
-                  ),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
       bottomNavigationBar: SafeArea(
@@ -220,9 +171,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
                 label: "Insights",
               ),
               NavigationDestination(
-                icon: Icon(Icons.more_horiz),
-                selectedIcon: Icon(Icons.more_horiz),
-                label: "More",
+                icon: Icon(Icons.favorite_border),
+                selectedIcon: Icon(Icons.favorite),
+                label: "Health",
               ),
             ],
           ),

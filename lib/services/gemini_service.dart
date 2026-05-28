@@ -129,7 +129,11 @@ User question: "$userPrompt"
     }
 
     final prompt = """
-Create exactly 4 short personalized productivity suggestions for this user:
+Create exactly 4 short personalized health improvement suggestions for this user.
+These suggestions should improve wellbeing through sleep, movement, stress, hydration, and healthier phone habits.
+Do not use awkward phrasing like "reduce today 26" or "reduce today <number>".
+Use natural language with clear actions.
+Each line must be a complete suggestion sentence, not a fragment.
 - Today usage minutes: $todayMinutes
 - Average daily usage minutes: $averageMinutes
 - Focus score (0-100): $focusScore
@@ -147,6 +151,8 @@ Output format:
         .split("\n")
         .map((e) => e.replaceFirst(RegExp(r"^\s*[-*]\s*"), "").trim())
         .where((e) => e.isNotEmpty)
+        .where((e) => !_isBadSuggestionPhrase(e))
+        .where(_isCompleteSuggestion)
         .toList();
 
     if (lines.isEmpty) {
@@ -154,6 +160,32 @@ Output format:
     }
 
     return lines.take(4).toList();
+  }
+
+  static bool _isBadSuggestionPhrase(String value) {
+    final text = value.toLowerCase();
+    if (text.contains("reduce today")) return true;
+    if (RegExp(r"\breduce today\s*\d+\b", caseSensitive: false).hasMatch(value)) return true;
+    return false;
+  }
+
+  static bool _isCompleteSuggestion(String value) {
+    final text = value.trim();
+    final words = text.split(RegExp(r"\s+")).where((w) => w.isNotEmpty).toList();
+    if (words.length < 6) return false;
+
+    // Reject fragment-like starts such as "Take 15" or "Do 10".
+    if (words.length >= 2 &&
+        RegExp(r"^\d+$").hasMatch(words[1]) &&
+        const {"take", "do", "add", "reduce", "sleep", "walk", "drink"}.contains(words[0].toLowerCase())) {
+      return false;
+    }
+
+    // Must contain at least one alphabetic token and not end with a raw number.
+    if (!RegExp(r"[a-zA-Z]").hasMatch(text)) return false;
+    if (RegExp(r"\d+$").hasMatch(text)) return false;
+
+    return true;
   }
 
   /// Short daily coach blurb for the dashboard (AI).
