@@ -4,8 +4,8 @@ import "package:life_pattern_tracker/models/insight_models.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
 
-const Color _kHealthGreen = Color(0xFF22C55E);
-const Color _kHealthGreenDark = Color(0xFF16A34A);
+const Color _kHealthGreen = Color(0xFF34D399);
+const Color _kHealthGreenDark = Color(0xFF22C55E);
 
 class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({super.key});

@@ -12,8 +12,8 @@ import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
 
-const Color _kHabitGreen = Color(0xFF22C55E);
-const Color _kHabitGreenDark = Color(0xFF16A34A);
+const Color _kHabitGreen = Color(0xFF34D399);
+const Color _kHabitGreenDark = Color(0xFF22C55E);
 const Color _kDayIncomplete = Color(0xFFE5E7EB);
 const Color _kMoodPink = Color(0xFFF9A8D4);
 const Color _kAddBlue = Color(0xFF2563EB);
