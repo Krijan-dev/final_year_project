@@ -2,6 +2,8 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/dashboard_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
+import "package:life_pattern_tracker/services/gemini_service.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
@@ -88,14 +90,121 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardHeader extends StatelessWidget {
+class _DashboardHeader extends StatefulWidget {
   const _DashboardHeader({required this.metrics});
 
   final DashboardMetrics metrics;
 
   @override
+  State<_DashboardHeader> createState() => _DashboardHeaderState();
+}
+
+class _DashboardHeaderState extends State<_DashboardHeader> {
+  late List<String> _suggestions;
+  int _selectedSuggestionIndex = 0;
+  bool _loadingAi = false;
+  String? _lastMetricsSignature;
+
+  @override
+  void initState() {
+    super.initState();
+    _suggestions = _fallbackSuggestions(widget.metrics);
+    _lastMetricsSignature = _metricsSignature(widget.metrics);
+    _loadAiSuggestions();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DashboardHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextSignature = _metricsSignature(widget.metrics);
+    if (nextSignature == _lastMetricsSignature) return;
+    _lastMetricsSignature = nextSignature;
+    _suggestions = _fallbackSuggestions(widget.metrics);
+    _selectedSuggestionIndex = 0;
+    _loadAiSuggestions();
+  }
+
+  String _metricsSignature(DashboardMetrics m) {
+    return "${m.screenMinutes}|${m.averageMinutes}|${m.focusScore}|${m.productivityScore}|${m.habitCompletionPercent}";
+  }
+
+  List<String> _fallbackSuggestions(DashboardMetrics m) {
+    final fallback = <String>[
+      if (m.screenMinutes > m.averageMinutes)
+        "Take a 20-minute no-phone walk to reduce stress and improve recovery.",
+      if (m.screenMinutes <= m.averageMinutes)
+        "Keep your rhythm with one calm focus block and a short stretch break.",
+      if (m.habitCompletionPercent < 60)
+        "Complete one easy health habit now to build momentum for tonight.",
+      if (m.habitCompletionPercent >= 60)
+        "Protect your streak by finishing hydration or sleep prep before evening.",
+      if (m.focusScore < 60)
+        "Do a 2-minute breathing reset before your next task to lower mental load.",
+      if (m.productivityScore < 60)
+        "Use a 25-minute timer and keep your phone out of reach.",
+    ].where((e) => e.trim().isNotEmpty).toSet().toList();
+    if (fallback.length < 3) {
+      fallback.addAll([
+        "Drink a glass of water now and set a reminder for the next hour.",
+        "Aim for a consistent bedtime tonight to improve tomorrow's focus and mood.",
+      ]);
+    }
+    return fallback.take(4).toList();
+  }
+
+  Future<void> _loadAiSuggestions() async {
+    if (_loadingAi) return;
+    setState(() => _loadingAi = true);
+    try {
+      final ai = await GeminiService.generateSuggestions(
+        todayMinutes: widget.metrics.screenMinutes,
+        averageMinutes: widget.metrics.averageMinutes,
+        focusScore: widget.metrics.focusScore,
+        productivityScore: widget.metrics.productivityScore,
+      );
+      if (!mounted) return;
+      final merged = [...ai.where((e) => e.trim().isNotEmpty), ..._fallbackSuggestions(widget.metrics)]
+          .toSet()
+          .take(4)
+          .toList();
+      if (merged.isNotEmpty) {
+        setState(() {
+          _suggestions = merged;
+          if (_selectedSuggestionIndex >= _suggestions.length) {
+            _selectedSuggestionIndex = 0;
+          }
+        });
+      }
+    } catch (_) {
+      // Keep fallback suggestions when AI is unavailable.
+    } finally {
+      if (mounted) setState(() => _loadingAi = false);
+    }
+  }
+
+  void _showPreviousSuggestion() {
+    if (_suggestions.isEmpty) return;
+    setState(() {
+      _selectedSuggestionIndex =
+          (_selectedSuggestionIndex - 1 + _suggestions.length) % _suggestions.length;
+    });
+  }
+
+  void _showNextSuggestion() {
+    if (_suggestions.isEmpty) return;
+    setState(() {
+      _selectedSuggestionIndex = (_selectedSuggestionIndex + 1) % _suggestions.length;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final insightText = _suggestions.isNotEmpty
+        ? _suggestions[_selectedSuggestionIndex]
+        : widget.metrics.coachSummaryFallback;
+    final insightCount = _suggestions.isNotEmpty ? _suggestions.length : 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -110,13 +219,81 @@ class _DashboardHeader extends StatelessWidget {
             const AccountAvatarButton(),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          metrics.hasUsageData
-              ? metrics.coachSummaryFallback
-              : "Grant usage access under More → Account, or open Time for charts.",
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 14, 14, 12),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.greenPale,
+                AppColors.greenLight,
+                Color(0xFFC7EFCF),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.green.withValues(alpha: 0.5), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                insightText,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF165B2E),
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    "${_selectedSuggestionIndex + 1}/$insightCount",
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: const Color(0xFF165B2E),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _showPreviousSuggestion,
+                      icon: const Icon(Icons.chevron_left, size: 22, color: Color(0xFF165B2E)),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _showNextSuggestion,
+                      icon: const Icon(Icons.chevron_right, size: 22, color: Color(0xFF165B2E)),
+                    ),
+                  ),
+                  if (_loadingAi) ...[
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF165B2E),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
         ),
       ],
