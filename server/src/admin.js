@@ -43,7 +43,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function registerAdminRoutes(app, { User, UsageDay }) {
+function registerAdminRoutes(
+  app,
+  {
+    User,
+    UsageDay,
+    HabitSnapshot,
+    SupportConversation,
+    SupportMessage,
+    CrisisFlag,
+    EmailVerification,
+    PasswordReset,
+    deleteUserFully,
+  },
+) {
   app.post("/api/v1/admin/login", (req, res) => {
     try {
       if (!isAdminConfigured()) {
@@ -136,6 +149,34 @@ function registerAdminRoutes(app, { User, UsageDay }) {
           data: r.data,
         })),
       });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Admin delete (dangerous): permanently removes user + all server-side data.
+  app.delete("/api/v1/admin/users/:email", requireAdmin, async (req, res) => {
+    try {
+      const email = normalizeAdminEmail(decodeURIComponent(req.params.email));
+      const user = await User.findOne({ email }).lean().exec();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      await deleteUserFully(
+        {
+          User,
+          UsageDay,
+          HabitSnapshot,
+          SupportConversation,
+          SupportMessage,
+          CrisisFlag,
+          EmailVerification,
+          PasswordReset,
+        },
+        email,
+      );
+      res.json({ ok: true });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });

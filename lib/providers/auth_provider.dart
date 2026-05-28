@@ -227,6 +227,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _storage.logout();
     state = state.copyWith(clearEmail: true);
   }
+
+  Future<String?> deleteAccount({required String password}) async {
+    if (!AuthRemoteService.isConfigured) {
+      return "Account deletion requires server sync (API not configured).";
+    }
+    final token = AuthTokenStore.read();
+    final err = await AuthRemoteService.deleteAccount(token: token, password: password);
+    if (err != null) return err;
+    await AuthTokenStore.write(null);
+    await _storage.logout();
+    state = state.copyWith(clearEmail: true);
+    return null;
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

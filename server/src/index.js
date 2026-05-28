@@ -14,6 +14,7 @@ const {
   assertEmailVerifiedForRegister,
 } = require("./email_verify");
 const { registerPasswordResetRoutes } = require("./password_reset");
+const { deleteUserFully } = require("./delete_user");
 
 const userSchema = new mongoose.Schema(
   {
@@ -312,6 +313,42 @@ async function main() {
     }
   });
 
+  // User self-delete: permanently removes account + all server-side data.
+  // Requires valid session token and current password confirmation.
+  app.delete("/api/v1/users/me", requireAuth, async (req, res) => {
+    try {
+      const password = String(req.body?.password || "");
+      if (!password) {
+        return res.status(400).json({ error: "Password is required to delete your account." });
+      }
+      const user = await User.findOne({ email: req.authEmail }).exec();
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (!verifyPassword(password, user.passwordHash)) {
+        return res.status(401).json({ error: "Incorrect password." });
+      }
+
+      await deleteUserFully(
+        {
+          User,
+          UsageDay,
+          HabitSnapshot,
+          SupportConversation,
+          SupportMessage,
+          CrisisFlag,
+          EmailVerification,
+          PasswordReset,
+        },
+        req.authEmail,
+      );
+      res.json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.put("/api/v1/users/:userId/usage-days/:dayKey", requireAuth, async (req, res) => {
     try {
       if (!assertOwnUser(req, res)) return;
@@ -366,7 +403,17 @@ async function main() {
     createCrisisFlag,
   });
 
-  registerAdminRoutes(app, { User, UsageDay, HabitSnapshot });
+  registerAdminRoutes(app, {
+    User,
+    UsageDay,
+    HabitSnapshot,
+    SupportConversation,
+    SupportMessage,
+    CrisisFlag,
+    EmailVerification,
+    PasswordReset,
+    deleteUserFully,
+  });
 
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, "0.0.0.0", () => {

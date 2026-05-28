@@ -239,6 +239,30 @@ class AuthRemoteService {
     }
   }
 
+  static Future<String?> deleteAccount({
+    required String token,
+    required String password,
+  }) async {
+    if (!isConfigured) return "API_BASE_URL is not configured.";
+    if (token.isEmpty) return "Missing session token.";
+    if (password.isEmpty) return "Password is required.";
+    try {
+      final res = await http.delete(
+        _uri("/api/v1/users/me"),
+        headers: _headers(token),
+        body: jsonEncode({"password": password}),
+      );
+      final decoded = _decode(res.body);
+      if (res.statusCode != 200) {
+        return decoded?["error"] as String? ?? "Server error (${res.statusCode})";
+      }
+      return null;
+    } catch (e, st) {
+      AppLog.e("AuthRemoteService.deleteAccount failed", error: e, stackTrace: st);
+      return "Cannot reach API. Is the server running?";
+    }
+  }
+
   static Map<String, String> authHeaders(String token) => _headers(token);
 
   static Map<String, String> _headers(String token) => {
