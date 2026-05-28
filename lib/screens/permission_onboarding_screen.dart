@@ -56,7 +56,8 @@ class _PermissionOnboardingScreenState extends ConsumerState<PermissionOnboardin
               ),
               const SizedBox(height: 10),
               const Text(
-                "To track screen time and app usage patterns, Android requires Usage Access permission.",
+                "To track screen time and app usage patterns, Android requires Usage Access permission. "
+                "Android does not show this as a normal in-app Allow popup, so tap below to open Settings and enable it.",
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -65,7 +66,7 @@ class _PermissionOnboardingScreenState extends ConsumerState<PermissionOnboardin
                   await ref.read(usageProvider.notifier).openUsageSettings();
                 },
                 icon: const Icon(Icons.settings),
-                label: const Text("Open Usage Access Settings"),
+                label: const Text("Grant permission (opens Settings)"),
               ),
               const SizedBox(height: 12),
               OutlinedButton(

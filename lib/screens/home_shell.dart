@@ -19,10 +19,30 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
   String? _lastCloudSyncEmail;
   bool _cloudSyncRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Usage Access is granted in Android settings, so re-check when user returns.
+      ref.read(usageProvider.notifier).checkPermission();
+    }
+  }
 
   Future<void> _restoreFromCloudAndRefresh() async {
     if (_cloudSyncRunning) return;
