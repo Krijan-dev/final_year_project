@@ -13,10 +13,17 @@ function isSmtpConfigured() {
 function createTransport() {
   const port = Number(process.env.SMTP_PORT) || 587;
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const connectionTimeout = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS) || 15000;
+  const greetingTimeout = Number(process.env.SMTP_GREETING_TIMEOUT_MS) || 15000;
+  const socketTimeout = Number(process.env.SMTP_SOCKET_TIMEOUT_MS) || 20000;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST.trim(),
     port,
     secure,
+    requireTLS: !secure,
+    connectionTimeout,
+    greetingTimeout,
+    socketTimeout,
     auth: {
       user: process.env.SMTP_USER.trim(),
       pass: process.env.SMTP_PASS.trim(),
@@ -50,6 +57,17 @@ async function sendVerificationEmail({ to, code }) {
     return { sent: true, devLogged: false };
   } catch (err) {
     console.error("[email] SMTP send failed:", err.message);
+    const msg = String(err?.message || "").toLowerCase();
+    if (
+      msg.includes("connection timeout") ||
+      msg.includes("timed out") ||
+      err?.code === "ETIMEDOUT" ||
+      err?.code === "ESOCKET"
+    ) {
+      throw new Error(
+        "Could not connect to SMTP server (timeout). Check SMTP_HOST/SMTP_PORT and try port 465 with SMTP_SECURE=true, or use a dedicated SMTP provider.",
+      );
+    }
     throw new Error(
       "Could not send email. Check SMTP_USER/SMTP_PASS (use a Gmail App Password, not your normal login password).",
     );
@@ -82,6 +100,17 @@ async function sendPasswordResetEmail({ to, code }) {
     return { sent: true, devLogged: false };
   } catch (err) {
     console.error("[email] SMTP send failed:", err.message);
+    const msg = String(err?.message || "").toLowerCase();
+    if (
+      msg.includes("connection timeout") ||
+      msg.includes("timed out") ||
+      err?.code === "ETIMEDOUT" ||
+      err?.code === "ESOCKET"
+    ) {
+      throw new Error(
+        "Could not connect to SMTP server (timeout). Check SMTP_HOST/SMTP_PORT and try port 465 with SMTP_SECURE=true, or use a dedicated SMTP provider.",
+      );
+    }
     throw new Error(
       "Could not send email. Check SMTP_USER/SMTP_PASS (use a Gmail App Password, not your normal login password).",
     );

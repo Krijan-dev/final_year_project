@@ -1,4 +1,5 @@
 import "dart:convert";
+import "dart:async";
 
 import "package:http/http.dart" as http;
 import "package:life_pattern_tracker/services/api_config.dart";
@@ -20,12 +21,14 @@ class SendVerificationResult {
     this.error,
     this.devCode,
     this.devHint,
+    this.smtpConfigured = true,
   });
 
   final bool ok;
   final String? error;
   final String? devCode;
   final String? devHint;
+  final bool smtpConfigured;
 }
 
 class VerifyEmailResult {
@@ -43,6 +46,7 @@ class VerifyEmailResult {
 /// Register/login against MongoDB via `server/` (see docs/MONGODB.md).
 class AuthRemoteService {
   static bool get isConfigured => ApiConfig.isConfigured;
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   static Uri _uri(String path) {
     final base = ApiConfig.baseUrl;
@@ -60,7 +64,7 @@ class AuthRemoteService {
         _uri("/api/v1/auth/send-verification"),
         headers: {"Content-Type": "application/json; charset=utf-8"},
         body: jsonEncode({"email": email.trim().toLowerCase()}),
-      );
+      ).timeout(_requestTimeout);
       final body = _decode(res.body);
       if (res.statusCode >= 400) {
         final serverError = body?["error"] as String?;
@@ -74,10 +78,26 @@ class AuthRemoteService {
           error: serverError ?? "Could not send code (${res.statusCode})",
         );
       }
+      final smtpConfigured = body?["smtpConfigured"] == true;
+      final devCode = body?["devCode"] as String?;
+      final devHint = body?["devHint"] as String?;
+      if (!smtpConfigured && (devCode == null || devCode.isEmpty)) {
+        return const SendVerificationResult(
+          error:
+              "Email service is not configured on the server, so verification emails cannot be sent yet.",
+          smtpConfigured: false,
+        );
+      }
       return SendVerificationResult(
         ok: true,
-        devCode: body?["devCode"] as String?,
-        devHint: body?["devHint"] as String?,
+        devCode: devCode,
+        devHint: devHint,
+        smtpConfigured: smtpConfigured,
+      );
+    } on TimeoutException catch (e, st) {
+      AppLog.e("sendVerificationCode timeout", error: e, stackTrace: st);
+      return const SendVerificationResult(
+        error: "Request timed out. Check your internet/API server and try again.",
       );
     } catch (e, st) {
       AppLog.e("sendVerificationCode failed", error: e, stackTrace: st);
@@ -143,7 +163,7 @@ class AuthRemoteService {
         _uri("/api/v1/auth/forgot-password"),
         headers: {"Content-Type": "application/json; charset=utf-8"},
         body: jsonEncode({"email": email.trim().toLowerCase()}),
-      );
+      ).timeout(_requestTimeout);
       final body = _decode(res.body);
       if (res.statusCode >= 400) {
         final serverError = body?["error"] as String?;
@@ -157,10 +177,26 @@ class AuthRemoteService {
           error: serverError ?? "Could not send reset code (${res.statusCode})",
         );
       }
+      final smtpConfigured = body?["smtpConfigured"] == true;
+      final devCode = body?["devCode"] as String?;
+      final devHint = body?["devHint"] as String?;
+      if (!smtpConfigured && (devCode == null || devCode.isEmpty)) {
+        return const SendVerificationResult(
+          error:
+              "Email service is not configured on the server, so reset codes cannot be sent yet.",
+          smtpConfigured: false,
+        );
+      }
       return SendVerificationResult(
         ok: true,
-        devCode: body?["devCode"] as String?,
-        devHint: body?["devHint"] as String?,
+        devCode: devCode,
+        devHint: devHint,
+        smtpConfigured: smtpConfigured,
+      );
+    } on TimeoutException catch (e, st) {
+      AppLog.e("sendForgotPasswordCode timeout", error: e, stackTrace: st);
+      return const SendVerificationResult(
+        error: "Request timed out. Check your internet/API server and try again.",
       );
     } catch (e, st) {
       AppLog.e("sendForgotPasswordCode failed", error: e, stackTrace: st);
