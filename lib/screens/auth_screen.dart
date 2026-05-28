@@ -85,26 +85,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       return;
     }
     setState(() => _busy = true);
-    final result = await ref.read(authProvider.notifier).sendVerificationCodeWithDev(
-          _regEmail.text,
-        );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      if (result.error == null) {
+    try {
+      final result = await ref.read(authProvider.notifier).sendVerificationCodeWithDev(
+            _regEmail.text,
+          );
+      if (!mounted) return;
+      if (result.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error!)));
+        return;
+      }
+      setState(() {
         _codeSent = true;
         _regStep = 1;
+      });
+      var msg = "Verification code sent. Check your inbox (and spam).";
+      if (result.devCode != null) {
+        msg = "Dev mode: your code is ${result.devCode}";
       }
-    });
-    if (result.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.error!)));
-      return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
-    var msg = "Verification code sent. Check your inbox (and spam).";
-    if (result.devCode != null) {
-      msg = "Dev mode: your code is ${result.devCode}";
-    }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   Future<void> _verifyCode() async {
