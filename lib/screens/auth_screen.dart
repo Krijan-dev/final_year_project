@@ -165,53 +165,127 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.lock_outline_rounded, size: 56, color: scheme.primary),
-                  const SizedBox(height: 12),
-                  Text(
-                    "Life Pattern Tracker",
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Sign in or create an account to continue.",
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 24),
-                  TabBar(
-                    controller: _tabs,
-                    onTap: (_) => _resetRegisterFlow(),
-                    tabs: const [
-                      Tab(text: "Log in"),
-                      Tab(text: "Sign up"),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  AnimatedBuilder(
-                    animation: _tabs,
-                    builder: (context, _) {
-                      return IndexedStack(
-                        index: _tabs.index,
-                        children: [
-                          _buildLoginCard(context),
-                          _buildRegisterCard(context),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              scheme.primaryContainer.withValues(alpha: 0.5),
+              scheme.secondaryContainer.withValues(alpha: 0.35),
+              scheme.surface,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 430),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
+                          ),
                         ],
-                      );
-                    },
-                  ),
-                ],
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [scheme.primary, scheme.secondary],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(Icons.lock_outline_rounded, size: 32, color: Colors.white),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            "Welcome Back",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Sign in or create an account to continue using Life Pattern Tracker.",
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  height: 1.35,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.07),
+                            blurRadius: 18,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+                        child: Column(
+                          children: [
+                            TabBar(
+                              controller: _tabs,
+                              onTap: (_) => _resetRegisterFlow(),
+                              dividerColor: Colors.transparent,
+                              indicatorSize: TabBarIndicatorSize.tab,
+                              indicator: BoxDecoration(
+                                color: scheme.primary.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              labelColor: scheme.primary,
+                              unselectedLabelColor: scheme.onSurfaceVariant,
+                              tabs: const [
+                                Tab(text: "Log in"),
+                                Tab(text: "Sign up"),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            AnimatedBuilder(
+                              animation: _tabs,
+                              builder: (context, _) {
+                                return IndexedStack(
+                                  index: _tabs.index,
+                                  children: [
+                                    _buildLoginCard(context),
+                                    _buildRegisterCard(context),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -221,83 +295,87 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   }
 
   Widget _buildLoginCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _loginForm,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _loginEmail,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) {
-                  final e = v?.trim() ?? "";
-                  if (!AuthNotifier.isValidEmail(e)) {
-                    return "Enter a valid email";
-                  }
-                  return null;
-                },
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Form(
+        key: _loginForm,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              "Account login",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _loginEmail,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const [AutofillHints.email],
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: "Email",
+                prefixIcon: Icon(Icons.alternate_email),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _loginPassword,
-                obscureText: _obscureLogin,
-                autofillHints: const [AutofillHints.password],
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) {
-                  if (!_busy) _submitLogin();
-                },
-                decoration: InputDecoration(
-                  labelText: "Password",
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _obscureLogin = !_obscureLogin),
-                    icon: Icon(_obscureLogin ? Icons.visibility_off : Icons.visibility),
-                  ),
+              validator: (v) {
+                final e = v?.trim() ?? "";
+                if (!AuthNotifier.isValidEmail(e)) {
+                  return "Enter a valid email";
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _loginPassword,
+              obscureText: _obscureLogin,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) {
+                if (!_busy) _submitLogin();
+              },
+              decoration: InputDecoration(
+                labelText: "Password",
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  onPressed: () => setState(() => _obscureLogin = !_obscureLogin),
+                  icon: Icon(_obscureLogin ? Icons.visibility_off : Icons.visibility),
                 ),
-                validator: (v) {
-                  if (v == null || v.isEmpty) return "Enter your password";
-                  return null;
-                },
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => ForgotPasswordScreen(
-                                initialEmail: _loginEmail.text,
-                              ),
+              validator: (v) {
+                if (v == null || v.isEmpty) return "Enter your password";
+                return null;
+              },
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _busy
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ForgotPasswordScreen(
+                              initialEmail: _loginEmail.text,
                             ),
-                          );
-                        },
-                  child: const Text("Forgot password?"),
-                ),
+                          ),
+                        );
+                      },
+                child: const Text("Forgot password?"),
               ),
-              const SizedBox(height: 8),
-              FilledButton(
-                onPressed: _busy ? null : _submitLogin,
-                child: _busy
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text("Log in"),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _busy ? null : _submitLogin,
+              icon: _busy
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login),
+              label: Text(_busy ? "Signing in..." : "Log in"),
+            ),
+          ],
         ),
       ),
     );
@@ -307,14 +385,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     final useCloudVerify = AuthRemoteService.isConfigured;
     final stepLabels = ["Email", "Verify", "Password"];
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _regForm,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Form(
+        key: _regForm,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              "Create account",
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
               if (useCloudVerify) ...[
                 Row(
                   children: [
@@ -356,7 +438,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ),
                 const SizedBox(height: 16),
               ],
-              if (!useCloudVerify || _regStep == 0) ...[
+            if (!useCloudVerify || _regStep == 0) ...[
                 TextFormField(
                   controller: _regEmail,
                   enabled: !_codeSent || !useCloudVerify,
@@ -365,7 +447,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: "Email",
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.mail_outline),
                     helperText: "We will send a 6-digit code to verify this address",
                   ),
                   validator: (v) {
@@ -378,15 +460,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ),
                 const SizedBox(height: 16),
                 if (useCloudVerify)
-                  FilledButton(
+                  FilledButton.icon(
                     onPressed: _busy ? null : _sendVerificationCode,
-                    child: _busy
+                    icon: _busy
                         ? const SizedBox(
-                            height: 22,
-                            width: 22,
+                            height: 18,
+                            width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(_codeSent ? "Resend code" : "Send verification code"),
+                        : const Icon(Icons.mark_email_read_outlined),
+                    label: Text(_busy
+                        ? "Sending..."
+                        : (_codeSent ? "Resend code" : "Send verification code")),
                   ),
               ],
               if (useCloudVerify && _regStep == 1) ...[
@@ -405,20 +490,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(
                     labelText: "Verification code",
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.verified_outlined),
                     counterText: "",
                   ),
                 ),
                 const SizedBox(height: 12),
-                FilledButton(
+                FilledButton.icon(
                   onPressed: _busy ? null : _verifyCode,
-                  child: _busy
+                  icon: _busy
                       ? const SizedBox(
-                          height: 22,
-                          width: 22,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text("Verify email"),
+                      : const Icon(Icons.shield_outlined),
+                  label: Text(_busy ? "Verifying..." : "Verify email"),
                 ),
                 TextButton(
                   onPressed: _busy
@@ -454,7 +540,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: "Password (min. 6 characters)",
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscureReg = !_obscureReg),
                       icon: Icon(_obscureReg ? Icons.visibility_off : Icons.visibility),
@@ -477,7 +563,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   },
                   decoration: InputDecoration(
                     labelText: "Confirm password",
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.verified_user_outlined),
                     suffixIcon: IconButton(
                       onPressed: () =>
                           setState(() => _obscureConfirm = !_obscureConfirm),
@@ -491,19 +577,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   },
                 ),
                 const SizedBox(height: 20),
-                FilledButton(
+                FilledButton.icon(
                   onPressed: _busy ? null : _submitRegister,
-                  child: _busy
+                  icon: _busy
                       ? const SizedBox(
-                          height: 22,
-                          width: 22,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text("Create account"),
+                      : const Icon(Icons.person_add_alt_1),
+                  label: Text(_busy ? "Creating..." : "Create account"),
                 ),
               ],
-            ],
-          ),
+          ],
         ),
       ),
     );
