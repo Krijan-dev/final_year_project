@@ -56,3 +56,6 @@ server/node_modules/
 
 # Website lives in separate repo (nested clone — do not commit in Flutter repo)
 LifePatternAI_Website/
+android/gradle.properties
+android/gradle/wrapper/gradle-wrapper.properties
+pubspec.lock
