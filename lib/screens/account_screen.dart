@@ -333,6 +333,11 @@ class AccountScreen extends ConsumerWidget {
                 );
                 if (confirm == true) {
                   await ref.read(authProvider.notifier).logout();
+                  if (!context.mounted) return;
+                  Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Logged out.")),
+                  );
                 }
               },
               icon: const Icon(Icons.logout),
