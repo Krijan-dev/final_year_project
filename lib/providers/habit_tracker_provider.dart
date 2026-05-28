@@ -559,7 +559,20 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
     return "custom:$normalized";
   }
 
-  static String? mapLogKeyToHabitId(String activityKey) => _logToHabitId[activityKey];
+  static String? mapLogKeyToHabitId(String activityKey) {
+    final mapped = _logToHabitId[activityKey];
+    if (mapped != null) return mapped;
+    // Allow callers to pass direct habit IDs as log keys.
+    if (activityKey == "sleep" ||
+        activityKey == "exercise" ||
+        activityKey == "water" ||
+        activityKey == "read" ||
+        activityKey == "meditate" ||
+        activityKey == "mood") {
+      return activityKey;
+    }
+    return null;
+  }
 
   void addLogSession({
     required String activityKey,
@@ -604,7 +617,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   }
 
   void _markHabitFromLog(String activityKey, String dateKey) {
-    final habitId = _logToHabitId[activityKey];
+    final habitId = mapLogKeyToHabitId(activityKey);
     if (habitId == null) return;
     final dayIndex = WeekCalendar.weekIndexForDateKey(dateKey);
     if (dayIndex < 0 || dayIndex > 6) return;
@@ -624,7 +637,8 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   }
 
   void _applyTodayLogsToHabits() {
-    for (final log in state.todayLogs) {
+    // Rebuild weekly checks from all current-week logs (supports backdated entries).
+    for (final log in state.logs) {
       _markHabitFromLog(log.activityKey, log.dateKey);
     }
   }
