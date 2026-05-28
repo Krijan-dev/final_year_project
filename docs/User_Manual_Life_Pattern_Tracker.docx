@@ -142,6 +142,7 @@ The More tab acts as a hub for:
 
 4.1 Granting usage permission (Screen Time access)
 To measure your screen time, the app needs Android usage access.
+Note: Android does not show this as a standard in-app Allow/Deny popup. The app opens Settings where you enable Usage Access manually.
 
 Steps:
 1. Open the app and go to the Time tab. If permission is missing, a banner or prompt will appear.
@@ -272,9 +273,25 @@ If the Gemini key is configured on the backend / app:
 3. From here, you may:
    - View your email / profile
    - Sign out of the app
+   - Permanently delete your account (Danger zone)
    - View privacy information and terms (if provided)
 
 [Screenshot placeholder: More tab – Account settings page]
+
+4.7.1 Deleting your account (mobile user)
+1. Open More → Account.
+2. Scroll to the “Danger zone” section.
+3. Tap “Delete account”.
+4. Enter your current password to confirm.
+5. Tap “Delete”.
+
+What happens next:
+- Your account is permanently removed from the server.
+- Synced usage days, habit snapshots, support conversations/messages, and related account records are deleted.
+- You are signed out immediately.
+
+[Screenshot placeholder: Account screen Danger zone with Delete account]
+[Screenshot placeholder: Delete account confirmation dialog with password field]
 
 4.8 Notifications and permissions
 1. On first use, the app may request notification permissions.
@@ -331,6 +348,21 @@ Note: The exact admin features may vary depending on your final implementation. 
 3. Use this information for support and troubleshooting.
 
 [Screenshot placeholder: Admin – Single user details page]
+
+6.2.1 Deleting a user account (admin)
+1. Open the admin dashboard and go to Users.
+2. Use either:
+   - “Delete” in the user list row, or
+   - “Delete this user” on the user details page.
+3. Confirm the deletion in the popup prompt.
+
+Important:
+- This action permanently deletes the selected user and their synced data.
+- This cannot be undone.
+
+[Screenshot placeholder: Admin – Delete button in users table]
+[Screenshot placeholder: Admin – Delete this user button on detail page]
+[Screenshot placeholder: Browser confirmation prompt]
 
 6.3 Managing admin or support accounts
 If your system supports multiple admin roles:
