@@ -1,5 +1,4 @@
 import "package:flutter/material.dart";
-import "package:life_pattern_tracker/screens/account_screen.dart";
 import "package:life_pattern_tracker/screens/health_screen.dart";
 import "package:life_pattern_tracker/widgets/subpage_scaffold.dart";
 
@@ -27,7 +26,7 @@ class MoreHubScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          "Health data, account, sync, and settings.",
+          "Health data, sync, and settings.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -42,18 +41,6 @@ class MoreHubScreen extends StatelessWidget {
             context,
             title: "Health",
             screen: const HealthScreen(embeddedInSubpage: true),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _HubTile(
-          icon: Icons.person_outline,
-          iconColor: const Color(0xFF2563EB),
-          title: "Account",
-          subtitle: "Sign in, cloud sync, permissions, and dev test data",
-          onTap: () => _open(
-            context,
-            title: "Account",
-            screen: const AccountScreen(embeddedInSubpage: true),
           ),
         ),
       ],

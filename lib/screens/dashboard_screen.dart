@@ -3,6 +3,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/dashboard_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
+import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
 const Color _kGreen = Color(0xFF34D399);
 const Color _kGreenDark = Color(0xFF22C55E);
@@ -113,9 +114,16 @@ class _DashboardHeaderState extends State<_DashboardHeader> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Dashboard",
-          style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Dashboard",
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const AccountAvatarButton(),
+          ],
         ),
         const SizedBox(height: 10),
         Container(
