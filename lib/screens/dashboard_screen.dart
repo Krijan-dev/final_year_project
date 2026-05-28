@@ -4,8 +4,8 @@ import "package:life_pattern_tracker/providers/dashboard_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 
-const Color _kGreen = Color(0xFF22C55E);
-const Color _kGreenDark = Color(0xFF16A34A);
+const Color _kGreen = Color(0xFF34D399);
+const Color _kGreenDark = Color(0xFF22C55E);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});

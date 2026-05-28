@@ -84,6 +84,7 @@ The admin web dashboard runs in the browser and connects to the server API. It:
 
 ------------------------------------------------------------
 3. MOBILE APP LAYOUT OVERVIEW
+
 ------------------------------------------------------------
 
 The app uses a bottom navigation bar with five tabs:

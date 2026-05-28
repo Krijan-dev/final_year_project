@@ -219,12 +219,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    if (AuthRemoteService.isConfigured) {
-      final token = AuthTokenStore.read();
-      await AuthRemoteService.logout(token: token);
-      await AuthTokenStore.write(null);
+    // Always clear local session even if remote logout/storage fails.
+    try {
+      if (AuthRemoteService.isConfigured) {
+        final token = AuthTokenStore.read();
+        await AuthRemoteService.logout(token: token);
+      }
+    } catch (_) {
+      // Ignore remote logout errors; local sign-out should still succeed.
     }
-    await _storage.logout();
+
+    try {
+      await AuthTokenStore.write(null);
+    } catch (_) {
+      // Continue clearing remaining local state.
+    }
+
+    try {
+      await _storage.logout();
+    } catch (_) {
+      // Continue and force UI sign-out state below.
+    }
+
     state = state.copyWith(clearEmail: true);
   }
 
