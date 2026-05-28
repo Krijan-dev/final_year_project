@@ -559,6 +559,8 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
     return "custom:$normalized";
   }
 
+  static String? mapLogKeyToHabitId(String activityKey) => _logToHabitId[activityKey];
+
   void addLogSession({
     required String activityKey,
     required String title,
@@ -566,7 +568,9 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
     required String emoji,
     required String timeLabel,
     required HabitLogAmountUnit amountUnit,
+    String? dateKey,
   }) {
+    final targetDateKey = dateKey ?? WeekCalendar.todayKey;
     final formatted = HabitLogDetailsFormatter.format(subtitle, amountUnit);
     final entry = TodayLogEntry(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -575,10 +579,10 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
       title: title,
       subtitle: formatted.isEmpty ? "Logged" : formatted,
       timeLabel: timeLabel,
-      dateKey: WeekCalendar.todayKey,
+      dateKey: targetDateKey,
     );
     state = state.copyWith(logs: [...state.logs, entry]);
-    _markHabitFromLog(activityKey);
+    _markHabitFromLog(activityKey, targetDateKey);
     _persist();
   }
 
@@ -586,6 +590,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
     required HabitLogPreset preset,
     required String timeLabel,
     required String subtitle,
+    String? dateKey,
   }) {
     addLogSession(
       activityKey: preset.id,
@@ -594,17 +599,19 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
       emoji: preset.emoji,
       timeLabel: timeLabel,
       amountUnit: preset.amountUnit,
+      dateKey: dateKey,
     );
   }
 
-  void _markHabitFromLog(String activityKey) {
+  void _markHabitFromLog(String activityKey, String dateKey) {
     final habitId = _logToHabitId[activityKey];
     if (habitId == null) return;
-    final today = WeekCalendar.todayWeekIndex;
+    final dayIndex = WeekCalendar.weekIndexForDateKey(dateKey);
+    if (dayIndex < 0 || dayIndex > 6) return;
     final updated = state.habits.map((h) {
       if (h.id != habitId) return h;
       final days = List<bool>.from(h.weekCompleted);
-      days[today] = true;
+      days[dayIndex] = true;
       return HabitTrackerHabit(
         id: h.id,
         name: h.name,
@@ -618,7 +625,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
 
   void _applyTodayLogsToHabits() {
     for (final log in state.todayLogs) {
-      _markHabitFromLog(log.activityKey);
+      _markHabitFromLog(log.activityKey, log.dateKey);
     }
   }
 

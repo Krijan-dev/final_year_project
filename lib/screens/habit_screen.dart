@@ -9,6 +9,7 @@ import "package:life_pattern_tracker/models/mood_day.dart";
 import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
+import "package:life_pattern_tracker/screens/habit_detail_screen.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
 
@@ -47,6 +48,13 @@ class HabitScreen extends ConsumerWidget {
             habits: state.habits,
             dayLabels: HabitTrackerHabit.weekDayLabels(),
             onToggleDay: notifier.toggleHabitDay,
+            onOpenHabit: (habitId) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => HabitDetailScreen(habitId: habitId),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
           _MoodThisWeekCard(
@@ -708,11 +716,13 @@ class _ThisWeeksHabitsCard extends StatelessWidget {
     required this.habits,
     required this.dayLabels,
     required this.onToggleDay,
+    required this.onOpenHabit,
   });
 
   final List<HabitTrackerHabit> habits;
   final List<String> dayLabels;
   final void Function(String habitId, int dayIndex) onToggleDay;
+  final void Function(String habitId) onOpenHabit;
 
   @override
   Widget build(BuildContext context) {
@@ -735,6 +745,7 @@ class _ThisWeeksHabitsCard extends StatelessWidget {
                   habit: habits[i],
                   dayLabels: dayLabels,
                   onToggleDay: onToggleDay,
+                  onOpenHabit: onOpenHabit,
                 ),
               );
             }),
@@ -750,11 +761,13 @@ class _HabitWeekRow extends StatelessWidget {
     required this.habit,
     required this.dayLabels,
     required this.onToggleDay,
+    required this.onOpenHabit,
   });
 
   final HabitTrackerHabit habit;
   final List<String> dayLabels;
   final void Function(String habitId, int dayIndex) onToggleDay;
+  final void Function(String habitId) onOpenHabit;
 
   @override
   Widget build(BuildContext context) {
@@ -762,47 +775,60 @@ class _HabitWeekRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: habit.iconBackground,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(habit.emoji, style: const TextStyle(fontSize: 20)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    habit.name,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+        InkWell(
+          onTap: () => onOpenHabit(habit.id),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: habit.iconBackground,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  Text(
-                    "${habit.completedDays}/7 days",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  child: Text(habit.emoji, style: const TextStyle(fontSize: 20)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        habit.name,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        "${habit.completedDays}/7 days",
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  "${habit.percent}%",
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: _kHabitGreen,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+              ],
             ),
-            Text(
-              "${habit.percent}%",
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: _kHabitGreen,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
         Row(
