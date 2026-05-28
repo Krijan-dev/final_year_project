@@ -110,6 +110,7 @@ class _ScreenTimeScreenState extends ConsumerState<ScreenTimeScreen> {
                     label: "Focus",
                     score: m.focusScore,
                     icon: Icons.center_focus_strong,
+                    color: const Color(0xFF7C3AED),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -118,6 +119,7 @@ class _ScreenTimeScreenState extends ConsumerState<ScreenTimeScreen> {
                     label: "Productivity",
                     score: m.productivityScore,
                     icon: Icons.trending_up,
+                    color: const Color(0xFF16A34A),
                   ),
                 ),
               ],
@@ -1119,11 +1121,13 @@ class _ScoreChip extends StatelessWidget {
     required this.label,
     required this.score,
     required this.icon,
+    required this.color,
   });
 
   final String label;
   final int score;
   final IconData icon;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -1134,12 +1138,22 @@ class _ScoreChip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            Icon(icon, size: 20, color: color),
             const SizedBox(height: 8),
             Text(label, style: theme.textTheme.labelMedium),
             Text(
               "$score",
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: (score / 100).clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: color.withValues(alpha: 0.18),
+                color: color,
+              ),
             ),
           ],
         ),

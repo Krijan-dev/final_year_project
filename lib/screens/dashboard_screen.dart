@@ -204,21 +204,25 @@ class _TodayOverviewCard extends StatelessWidget {
                 icon: Icons.track_changes_outlined,
                 label: "Productivity",
                 value: metrics.hasUsageData ? "${metrics.productivityScore}" : "—",
+                progress: metrics.hasUsageData ? metrics.productivityScore / 100 : 0,
               ),
               _HeroMetricTile(
                 icon: Icons.center_focus_strong,
                 label: "Focus",
                 value: metrics.hasUsageData ? "${metrics.focusScore}" : "—",
+                progress: metrics.hasUsageData ? metrics.focusScore / 100 : 0,
               ),
               _HeroMetricTile(
                 icon: Icons.calendar_view_week_rounded,
                 label: "Habits",
                 value: "${metrics.habitCompletionPercent}%",
+                progress: metrics.habitCompletionPercent / 100,
               ),
               _HeroMetricTile(
                 icon: Icons.local_fire_department_outlined,
                 label: "Best streak",
                 value: "${metrics.bestStreakDays}d",
+                progress: (metrics.bestStreakDays / 30).clamp(0, 1).toDouble(),
               ),
             ],
           ),
@@ -233,11 +237,13 @@ class _HeroMetricTile extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.progress,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -249,10 +255,10 @@ class _HeroMetricTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Icon(icon, color: Colors.white, size: 20),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             label,
             style: const TextStyle(
@@ -268,8 +274,18 @@ class _HeroMetricTile extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 4,
+              backgroundColor: Colors.white24,
+              color: Colors.white,
             ),
           ),
         ],
@@ -311,6 +327,7 @@ class _WellnessStyleScores extends StatelessWidget {
                   label: "Productivity",
                   background: const Color(0xFFECFDF5),
                   foreground: _kGreenDark,
+                  track: _kGreenDark.withValues(alpha: 0.18),
                   showDash: !metrics.hasUsageData,
                 ),
               ),
@@ -321,6 +338,7 @@ class _WellnessStyleScores extends StatelessWidget {
                   label: "Focus",
                   background: const Color(0xFFF5F3FF),
                   foreground: const Color(0xFF7C3AED),
+                  track: const Color(0xFF7C3AED).withValues(alpha: 0.18),
                   showDash: !metrics.hasUsageData,
                 ),
               ),
@@ -374,6 +392,7 @@ class _ScoreTile extends StatelessWidget {
     required this.label,
     required this.background,
     required this.foreground,
+    required this.track,
     this.showDash = false,
   });
 
@@ -381,6 +400,7 @@ class _ScoreTile extends StatelessWidget {
   final String label;
   final Color background;
   final Color foreground;
+  final Color track;
   final bool showDash;
 
   @override
@@ -406,6 +426,19 @@ class _ScoreTile extends StatelessWidget {
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: showDash ? 0 : (score / 100).clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: track.withValues(alpha: 0.5),
+                color: foreground,
+              ),
             ),
           ),
         ],
