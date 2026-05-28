@@ -189,9 +189,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     Container(
                       padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withValues(alpha: 0.94),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.08),
@@ -236,9 +236,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     const SizedBox(height: 18),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: Colors.white.withValues(alpha: 0.96),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.98)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.07),

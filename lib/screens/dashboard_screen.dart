@@ -88,29 +88,14 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardHeader extends StatefulWidget {
+class _DashboardHeader extends StatelessWidget {
   const _DashboardHeader({required this.metrics});
 
   final DashboardMetrics metrics;
 
   @override
-  State<_DashboardHeader> createState() => _DashboardHeaderState();
-}
-
-class _DashboardHeaderState extends State<_DashboardHeader> {
-  int _suggestionIndex = 0;
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final suggestions = _buildSuggestions(widget.metrics);
-    if (_suggestionIndex >= suggestions.length) {
-      _suggestionIndex = suggestions.isEmpty ? 0 : suggestions.length - 1;
-    }
-    final activeSuggestion = suggestions.isEmpty
-        ? "Grant usage access under More -> Account, or open Time for charts."
-        : suggestions[_suggestionIndex];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -125,179 +110,16 @@ class _DashboardHeaderState extends State<_DashboardHeader> {
             const AccountAvatarButton(),
           ],
         ),
-        const SizedBox(height: 10),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.35),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                activeSuggestion,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w500,
-                  height: 1.35,
-                ),
-              ),
-              if (suggestions.length > 1) ...[
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      "${_suggestionIndex + 1}/${suggestions.length}",
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.85),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    _SuggestionNavButton(
-                      icon: Icons.chevron_left,
-                      onTap: () {
-                        setState(() {
-                          _suggestionIndex =
-                              (_suggestionIndex - 1 + suggestions.length) % suggestions.length;
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    _SuggestionNavButton(
-                      icon: Icons.chevron_right,
-                      onTap: () {
-                        setState(() {
-                          _suggestionIndex = (_suggestionIndex + 1) % suggestions.length;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ],
+        const SizedBox(height: 4),
+        Text(
+          metrics.hasUsageData
+              ? metrics.coachSummaryFallback
+              : "Grant usage access under More → Account, or open Time for charts.",
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
-    );
-  }
-
-  List<String> _buildSuggestions(DashboardMetrics metrics) {
-    if (!metrics.hasUsageData) {
-      return const [
-        "Grant usage access under More -> Account, or open Time for charts.",
-      ];
-    }
-    final list = <String>[];
-
-    if (metrics.screenDiffMinutes > 45) {
-      list.add(
-        "Today looks mentally heavy. Schedule two short off-screen breaks (5-10 min walk or stretch) to reduce strain and reset energy.",
-      );
-    } else if (metrics.screenDiffMinutes < -30) {
-      list.add(
-        "Your digital load is lighter than usual today. Use this window for recovery habits like hydration, movement, or early sleep.",
-      );
-    } else {
-      list.add(
-        "Your usage pattern is balanced today. Keep your current rhythm and protect one uninterrupted focus block for mental clarity.",
-      );
-    }
-
-    if (metrics.focusScore < 50) {
-      list.add(
-        "Attention appears fragmented. Try 25 minutes of single-task work followed by 5 minutes of movement to improve cognitive recovery.",
-      );
-    } else if (metrics.focusScore >= 75) {
-      list.add(
-        "Your focus pattern is strong right now. Use this high-attention window for your most demanding task before fatigue builds.",
-      );
-    }
-
-    if (metrics.productivityScore < 50) {
-      list.add(
-        "Energy may be leaking into low-value activity. Start with one meaningful task early to improve daily control and reduce stress.",
-      );
-    }
-
-    if (metrics.habitCompletionPercent < 40) {
-      list.add(
-        "Health routines are inconsistent this week. Prioritize two anchors today: hydration and at least one movement session.",
-      );
-    } else if (metrics.habitCompletionPercent >= 70) {
-      list.add(
-        "Your routine consistency is helping. Keep the same habit timing this evening to reinforce sleep and recovery quality.",
-      );
-    }
-
-    if (metrics.moodAverage != null && metrics.moodAverage! < 6) {
-      list.add(
-        "Mood trend suggests higher load. Add a low-pressure recovery action tonight: short walk, journaling, or earlier wind-down.",
-      );
-    } else if (metrics.moodAverage != null && metrics.moodAverage! >= 7.5) {
-      list.add(
-        "Mood trend is positive. Maintain it with steady sleep timing and one deliberate relaxation period before bed.",
-      );
-    }
-
-    if (metrics.topApps.isNotEmpty) {
-      final appName = metrics.topApps.first.appName;
-      list.add(
-        "$appName dominates usage today. Insert one boundary (time box or break rule) to reduce passive scroll and protect attention.",
-      );
-    }
-
-    if (list.isEmpty) {
-      list.add(
-        "Keep recovery simple today: hydrate consistently, move at least once, and protect a calm pre-sleep routine.",
-      );
-    }
-
-    final seen = <String>{};
-    final deduped = <String>[];
-    for (final line in list) {
-      final normalized = line.trim();
-      if (normalized.isEmpty) continue;
-      if (seen.add(normalized)) deduped.add(normalized);
-    }
-    return deduped.take(8).toList();
-  }
-}
-
-class _SuggestionNavButton extends StatelessWidget {
-  const _SuggestionNavButton({
-    required this.icon,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Ink(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary.withValues(alpha: 0.18),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: theme.colorScheme.onPrimaryContainer,
-        ),
-      ),
     );
   }
 }
@@ -540,16 +362,20 @@ class _WellnessStyleScores extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 28),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
+            gradient: const LinearGradient(
+              colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFFED7AA)),
+            border: Border.all(color: const Color(0xFF86EFAC)),
           ),
           child: Column(
             children: [
               Text(
                 "${metrics.habitCompletionPercent}",
                 style: theme.textTheme.displayMedium?.copyWith(
-                  color: const Color(0xFFEA580C),
+                  color: const Color(0xFF16A34A),
                   fontWeight: FontWeight.w800,
                 ),
               ),
