@@ -15,6 +15,7 @@ const {
 } = require("./email_verify");
 const { registerPasswordResetRoutes } = require("./password_reset");
 const { deleteUserFully } = require("./delete_user");
+const { logSmtpStartupStatus } = require("./email");
 
 const userSchema = new mongoose.Schema(
   {
@@ -230,6 +231,8 @@ async function main() {
     normalizeEmail,
     isValidEmail,
   });
+
+  await logSmtpStartupStatus();
 
   app.post("/api/v1/auth/register", async (req, res) => {
     try {
