@@ -31,6 +31,31 @@ function createTransport() {
   });
 }
 
+async function logSmtpStartupStatus() {
+  if (!isSmtpConfigured()) {
+    console.log("[email] SMTP startup check: skipped (SMTP env vars not fully configured).");
+    return;
+  }
+
+  const host = process.env.SMTP_HOST?.trim();
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const secure = process.env.SMTP_SECURE === "true" || port === 465;
+  const user = process.env.SMTP_USER?.trim() || "";
+
+  try {
+    const transport = createTransport();
+    await transport.verify();
+    console.log(
+      `[email] SMTP startup check: OK (${host}:${port}, secure=${secure}, user=${user})`,
+    );
+  } catch (err) {
+    const code = err?.code ? ` code=${err.code}` : "";
+    console.error(
+      `[email] SMTP startup check: FAILED (${host}:${port}, secure=${secure}, user=${user})${code} message=${err?.message || err}`,
+    );
+  }
+}
+
 async function sendVerificationEmail({ to, code }) {
   const from = process.env.SMTP_FROM?.trim() || process.env.SMTP_USER?.trim() || "noreply@lifepattern.app";
   const subject = "Your Life Pattern Tracker verification code";
@@ -117,5 +142,10 @@ async function sendPasswordResetEmail({ to, code }) {
   }
 }
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, isSmtpConfigured };
+module.exports = {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  isSmtpConfigured,
+  logSmtpStartupStatus,
+};
 
