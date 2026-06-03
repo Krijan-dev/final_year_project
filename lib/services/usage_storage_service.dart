@@ -6,6 +6,12 @@ class UsageStorageService {
 
   Future<Box<dynamic>> _openBox() => Hive.openBox<dynamic>(_boxName);
 
+  /// Removes all cached usage days (e.g. old cloud restore). Phone stats repopulate on refresh.
+  Future<void> clearAll() async {
+    final box = await _openBox();
+    await box.clear();
+  }
+
   Future<void> saveDay(DailyUsageModel model) async {
     final box = await _openBox();
     final key = _dayKey(model.date);

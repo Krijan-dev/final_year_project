@@ -1,10 +1,9 @@
 import "dart:io";
 
 import "package:flutter/material.dart";
-import "package:flutter/services.dart";
-import "package:health/health.dart";
-import "package:life_pattern_tracker/utils/app_log.dart";
+import "package:life_pattern_tracker/services/health_connect_service.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
+import "package:life_pattern_tracker/widgets/health_connect_prompt.dart";
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key, this.embeddedInSubpage = false});
@@ -16,23 +15,18 @@ class HealthScreen extends StatefulWidget {
   State<HealthScreen> createState() => _HealthScreenState();
 }
 
-class _HealthScreenState extends State<HealthScreen> {
-  static const List<HealthDataType> _authTypes = [
-    HealthDataType.STEPS,
-    HealthDataType.SLEEP_SESSION,
-    HealthDataType.SLEEP_ASLEEP,
-  ];
-
+class _HealthScreenState extends State<HealthScreen> with WidgetsBindingObserver {
   bool _loading = true;
-  String? _error;
+  HealthConnectData? _data;
 
   int? _stepsToday;
   double? _sleepHoursLastNight;
-  List<_DaySteps>? _stepsLast7Days;
+  List<HealthDaySteps>? _stepsLast7Days;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (Platform.isAndroid) {
       _load();
     } else {
@@ -40,108 +34,47 @@ class _HealthScreenState extends State<HealthScreen> {
     }
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-    try {
-      final health = Health();
-      await health.configure();
-
-      final sdk = await health.getHealthConnectSdkStatus();
-      if (sdk != HealthConnectSdkStatus.sdkAvailable) {
-        setState(() {
-          _loading = false;
-          _error =
-              "Install or update Health Connect from the Play Store, then pull to refresh.";
-        });
-        return;
-      }
-
-      final reads = List<HealthDataAccess>.filled(
-        _authTypes.length,
-        HealthDataAccess.READ,
-      );
-      final has = await health.hasPermissions(_authTypes, permissions: reads);
-      if (has != true) {
-        final granted = await health.requestAuthorization(_authTypes, permissions: reads);
-        if (!granted) {
-          setState(() {
-            _loading = false;
-            _error = "Allow steps and sleep access in Health Connect, then pull to refresh.";
-          });
-          return;
-        }
-      }
-
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-
-      final steps = await health.getTotalStepsInInterval(startOfDay, now);
-
-      // "Last night" sleep: measure the window around the previous night.
-      final sleepEnd = now;
-      final sleepStart = startOfDay.subtract(const Duration(hours: 18));
-      var sleepPoints = await health.getHealthDataFromTypes(
-        types: const [HealthDataType.SLEEP_SESSION],
-        startTime: sleepStart,
-        endTime: sleepEnd,
-      );
-
-      double sleepHours = 0;
-      if (sleepPoints.isNotEmpty) {
-        for (final p in sleepPoints) {
-          sleepHours += p.dateTo.difference(p.dateFrom).inMinutes / 60.0;
-        }
-      } else {
-        sleepPoints = await health.getHealthDataFromTypes(
-          types: const [HealthDataType.SLEEP_ASLEEP],
-          startTime: sleepStart,
-          endTime: sleepEnd,
-        );
-        for (final p in sleepPoints) {
-          sleepHours += p.dateTo.difference(p.dateFrom).inMinutes / 60.0;
-        }
-      }
-
-      final startOf7Days = startOfDay.subtract(const Duration(days: 6));
-      final steps7d = <_DaySteps>[];
-      for (var i = 0; i < 7; i++) {
-        final dayStart = startOf7Days.add(Duration(days: i));
-        final dayEnd = dayStart.add(const Duration(days: 1));
-        final s = await health.getTotalStepsInInterval(dayStart, dayEnd);
-        steps7d.add(
-          _DaySteps(
-            label: _weekdayLabel(dayStart),
-            steps: s ?? 0,
-          ),
-        );
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _stepsToday = steps ?? 0;
-        _sleepHoursLastNight = sleepHours > 0 ? sleepHours : null;
-        _stepsLast7Days = steps7d;
-      });
-    } catch (e, st) {
-      AppLog.e("HealthScreen load failed", error: e, stackTrace: st);
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = _friendlyError(e);
-      });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_loading) {
+      _load();
     }
   }
 
-  static String _friendlyError(Object e) {
-    if (e is MissingPluginException) {
-      return "Health Connect needs a full rebuild. Stop the app, run flutter clean, then flutter run again.";
+  Future<void> _load({bool requestPermission = false}) async {
+    setState(() => _loading = true);
+
+    final result = await HealthConnectService.load(
+      requestPermissionIfNeeded: requestPermission,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _data = result;
+      _stepsToday = result.permissionsGranted ? result.stepsToday : null;
+      _sleepHoursLastNight = result.sleepHoursLastNight;
+      _stepsLast7Days =
+          result.stepsLast7Days.isNotEmpty ? result.stepsLast7Days : null;
+    });
+  }
+
+  Future<void> _grantHealthAccess() async {
+    setState(() => _loading = true);
+    final result = await HealthConnectService.requestPermissions();
+    if (!mounted) return;
+    if (result.message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message!)),
+      );
     }
-    return "Could not read Health Connect. Install Health Connect, grant steps & sleep permissions, then pull to refresh.";
+    await _load();
   }
 
   @override
@@ -166,6 +99,9 @@ class _HealthScreenState extends State<HealthScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ),
+          const SizedBox(height: 10),
+          if (_data != null)
+            _HealthPermissionStatusBar(data: _data!),
           const SizedBox(height: 16),
           if (_loading) ...[
             const Card(
@@ -174,24 +110,31 @@ class _HealthScreenState extends State<HealthScreen> {
                 child: LinearProgressIndicator(minHeight: 3),
               ),
             ),
-          ] else if (_error != null) ...[
+          ] else if (_data != null &&
+              (_data!.needsInstall || _data!.needsPermission)) ...[
+            HealthConnectPromptCard(
+              data: _data!,
+              onGrantAccess: _grantHealthAccess,
+              onInstall: () async {
+                await HealthConnectService.installOrUpdateHealthConnect();
+                if (mounted) await _load();
+              },
+              onRetry: _load,
+            ),
+          ] else if (_data != null && _data!.permissionsGranted && !_data!.hasData) ...[
+            _OverviewCard(
+              stepsToday: _stepsToday ?? 0,
+              sleepHoursLastNight: _sleepHoursLastNight,
+            ),
+            const SizedBox(height: 14),
             Card(
-              color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  _error!,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onErrorContainer,
-                      ),
+                  _data!.errorMessage ?? HealthConnectService.genericSyncHint,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _load,
-              icon: const Icon(Icons.refresh),
-              label: const Text("Try again"),
             ),
           ] else ...[
             _OverviewCard(
@@ -217,10 +160,57 @@ class _HealthScreenState extends State<HealthScreen> {
     );
   }
 
-  static String _weekdayLabel(DateTime d) {
-    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    // DateTime.weekday: Mon=1 ... Sun=7
-    return labels[(d.weekday - 1).clamp(0, 6)];
+}
+
+class _HealthPermissionStatusBar extends StatelessWidget {
+  const _HealthPermissionStatusBar({required this.data});
+
+  final HealthConnectData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final granted = data.permissionsGranted;
+    final needsHcApp = data.needsInstall;
+    final ok = granted;
+    final bg = ok
+        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.45)
+        : theme.colorScheme.errorContainer.withValues(alpha: 0.35);
+    final fg = ok ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onErrorContainer;
+
+    String label;
+    if (needsHcApp && !granted) {
+      label = "Health Connect app needed — install or open below";
+    } else if (!granted) {
+      label = "Health Connect: allow Steps & Sleep for this app below";
+    } else if (!data.hasData) {
+      label = "Health Connect: allowed — waiting for steps/sleep data";
+    } else {
+      label = "Health Connect: connected — reading steps and sleep";
+    }
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(ok ? Icons.favorite_outline : Icons.lock_outline, size: 20, color: fg),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -454,7 +444,7 @@ class _WellnessScoreCard extends StatelessWidget {
 class _StepsTrendCard extends StatelessWidget {
   const _StepsTrendCard({required this.steps});
 
-  final List<_DaySteps> steps;
+  final List<HealthDaySteps> steps;
 
   @override
   Widget build(BuildContext context) {
@@ -645,14 +635,3 @@ class _MetricTile extends StatelessWidget {
     );
   }
 }
-
-class _DaySteps {
-  const _DaySteps({
-    required this.label,
-    required this.steps,
-  });
-
-  final String label;
-  final int steps;
-}
-

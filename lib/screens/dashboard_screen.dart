@@ -1,12 +1,14 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/dashboard_provider.dart";
+import "package:life_pattern_tracker/providers/usage_provider.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 import "package:life_pattern_tracker/widgets/green_hero_metric_tile.dart";
+import "package:life_pattern_tracker/widgets/usage_access_prompt.dart";
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -14,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dash = ref.watch(dashboardProvider);
+    final usage = ref.watch(usageProvider);
     final controller = ref.read(dashboardProvider.notifier);
     final m = dash.metrics;
     final theme = Theme.of(context);
@@ -43,11 +46,14 @@ class DashboardScreen extends ConsumerWidget {
           ],
           _DashboardHeader(metrics: m),
           const SizedBox(height: 16),
-          if (!m.hasUsageData) ...[
+          if (!usage.hasPermission) ...[
+            const UsageAccessPromptCard(compact: true),
+            const SizedBox(height: 16),
+          ] else if (!m.hasUsageData) ...[
             const _FirstOpenStarterCard(),
             const SizedBox(height: 16),
           ],
-          _TodayOverviewCard(metrics: m),
+          _TodayOverviewCard(metrics: m, hasUsagePermission: usage.hasPermission),
           const SizedBox(height: 16),
           _WellnessStyleScores(metrics: m),
           const SizedBox(height: 20),
@@ -58,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
             badge: "Live",
           ),
           const SizedBox(height: 12),
-          _TodayMetricsGrid(metrics: m),
+          _TodayMetricsGrid(metrics: m, hasUsagePermission: usage.hasPermission),
           if (m.ruleInsights.isNotEmpty) ...[
             const SizedBox(height: 20),
             const _SectionTitle(
@@ -304,16 +310,22 @@ class _DashboardHeaderState extends State<_DashboardHeader> {
 }
 
 class _TodayOverviewCard extends StatelessWidget {
-  const _TodayOverviewCard({required this.metrics});
+  const _TodayOverviewCard({
+    required this.metrics,
+    required this.hasUsagePermission,
+  });
 
   final DashboardMetrics metrics;
+  final bool hasUsagePermission;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final screenLabel = metrics.hasUsageData
-        ? formatMinutes(metrics.screenMinutes)
-        : "Ready to start";
+    final screenLabel = !hasUsagePermission
+        ? "—"
+        : metrics.hasUsageData
+            ? formatMinutes(metrics.screenMinutes)
+            : "Ready to start";
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -720,9 +732,13 @@ class _ScoreTile extends StatelessWidget {
 }
 
 class _TodayMetricsGrid extends StatelessWidget {
-  const _TodayMetricsGrid({required this.metrics});
+  const _TodayMetricsGrid({
+    required this.metrics,
+    required this.hasUsagePermission,
+  });
 
   final DashboardMetrics metrics;
+  final bool hasUsagePermission;
 
   @override
   Widget build(BuildContext context) {
@@ -733,8 +749,14 @@ class _TodayMetricsGrid extends StatelessWidget {
           Expanded(
             child: _MetricDetailCard(
               title: "Screen time",
-              value: metrics.hasUsageData ? formatMinutes(metrics.screenMinutes) : "—",
-              subtitle: metrics.screenTimeSubtitle,
+              value: !hasUsagePermission
+                  ? "—"
+                  : metrics.hasUsageData
+                      ? formatMinutes(metrics.screenMinutes)
+                      : "—",
+              subtitle: !hasUsagePermission
+                  ? "Enable usage access above"
+                  : metrics.screenTimeSubtitle,
               icon: Icons.hourglass_top_rounded,
               color: Colors.red,
               progress: metrics.screenProgress,

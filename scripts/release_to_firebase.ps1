@@ -4,7 +4,8 @@ param(
   [string]$Testers = "",
   [string]$ReleaseNotes = "",
   [switch]$SkipBuild,
-  [switch]$Debug
+  [switch]$Debug,
+  [switch]$GenerateQr
 )
 
 $ErrorActionPreference = "Stop"
@@ -89,3 +90,20 @@ Write-Host "Done." -ForegroundColor Green
 Write-Host "APK: $apkPath"
 if (-not [string]::IsNullOrWhiteSpace($Groups)) { Write-Host "Groups: $Groups" }
 if (-not [string]::IsNullOrWhiteSpace($Testers)) { Write-Host "Testers: $Testers" }
+
+if ($GenerateQr) {
+  $qrScript = Join-Path $PSScriptRoot "generate_tester_qr.ps1"
+  if (Test-Path $qrScript) {
+    Write-Host ""
+    & powershell -ExecutionPolicy Bypass -File $qrScript
+  }
+} else {
+  $linkFile = Join-Path $projectRoot "tester_invite_link.txt"
+  if (Test-Path $linkFile) {
+    Write-Host ""
+    Write-Host "Tip: run with -GenerateQr to refresh build\tester_invite_qr.png for self-serve testers." -ForegroundColor Yellow
+  } else {
+    Write-Host ""
+    Write-Host "For QR self-serve testing: create an Invite link in Firebase Console, save to tester_invite_link.txt, then run .\scripts\generate_tester_qr.ps1" -ForegroundColor Yellow
+  }
+}
