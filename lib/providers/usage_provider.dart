@@ -1,11 +1,16 @@
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:hive_flutter/hive_flutter.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
 import "package:life_pattern_tracker/services/auth_storage_service.dart";
 import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
+import "package:life_pattern_tracker/services/gemini_key_store.dart";
 import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
+
+const String kUsageOwnerEmailKey = "usage_owner_email";
+const String kUsageCloudPurgedKey = "usage_cloud_purged_v3";
 
 final usageStatsServiceProvider = Provider<UsageStatsService>((ref) => UsageStatsService());
 final usageStorageServiceProvider = Provider<UsageStorageService>((ref) => UsageStorageService());
@@ -67,22 +72,40 @@ class UsageNotifier extends StateNotifier<UsageState> {
   Future<void> initialize() async {
     try {
       final hasPermission = await _statsService.hasUsagePermission();
-      final history = await _storageService.getAllDays();
+      await _purgeLegacyCloudUsageOnce();
+      await _clearUsageIfAccountChanged();
       state = state.copyWith(
         initialCheckComplete: true,
         hasPermission: hasPermission,
-        history: history,
         clearError: true,
       );
       if (hasPermission) {
         await refreshToday();
+      } else {
+        state = state.copyWith(history: const [], today: null);
       }
     } catch (e) {
       state = state.copyWith(initialCheckComplete: true, error: e.toString());
     }
   }
 
+  /// Call after sign-in: drop cached cloud usage and reload from Usage Access only.
+  Future<void> applyDeviceOnlyOnSignIn() async {
+    await _clearUsageIfAccountChanged();
+    if (state.hasPermission) {
+      await refreshToday();
+    } else {
+      state = state.copyWith(history: const [], today: null, clearError: true);
+    }
+  }
+
   Future<void> openUsageSettings() => _statsService.openUsageAccessSettings();
+
+  Future<void> openApplicationSettings() => _statsService.openApplicationSettings();
+
+  Future<String> applicationLabel() => _statsService.getApplicationLabel();
+
+  Future<String> usageAccessHint() => _statsService.getUsageAccessHint();
 
   Future<void> checkPermission() async {
     final permission = await _statsService.hasUsagePermission();
@@ -92,24 +115,25 @@ class UsageNotifier extends StateNotifier<UsageState> {
     }
   }
 
-  /// Reload history from Hive after cloud restore (new phone / fresh install).
-  Future<void> reloadFromStorage() async {
-    final history = await _storageService.getAllDays();
-    final now = DateTime.now();
-    DailyUsageModel? today;
-    for (final day in history) {
-      if (day.date.year == now.year &&
-          day.date.month == now.month &&
-          day.date.day == now.day) {
-        today = day;
-        break;
-      }
+  Future<void> _purgeLegacyCloudUsageOnce() async {
+    if (!Hive.isBoxOpen(kAppSettingsBoxName)) return;
+    final box = Hive.box<dynamic>(kAppSettingsBoxName);
+    if (box.get(kUsageCloudPurgedKey) == true) return;
+    await _storageService.clearAll();
+    await box.put(kUsageCloudPurgedKey, true);
+  }
+
+  Future<void> _clearUsageIfAccountChanged() async {
+    if (!Hive.isBoxOpen(kAppSettingsBoxName)) return;
+    final email = await _authStorage.getSessionEmail();
+    final normalized = email?.trim().toLowerCase() ?? "";
+    final box = Hive.box<dynamic>(kAppSettingsBoxName);
+    final previous = (box.get(kUsageOwnerEmailKey) as String?)?.trim().toLowerCase() ?? "";
+    if (normalized.isEmpty) return;
+    if (previous.isNotEmpty && previous != normalized) {
+      await _storageService.clearAll();
     }
-    state = state.copyWith(
-      history: history,
-      today: today ?? state.today,
-      clearError: true,
-    );
+    await box.put(kUsageOwnerEmailKey, normalized);
   }
 
   Future<void> refreshToday() async {

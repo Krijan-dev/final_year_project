@@ -11,28 +11,24 @@ import "package:life_pattern_tracker/utils/app_log.dart";
 abstract final class CloudSyncService {
   static bool get isConfigured => AuthRemoteService.isConfigured;
 
-  /// Full restore (usage + habits). Use from Account -> Restore all data from cloud.
-  static Future<bool> restoreFromCloud({bool includeUsage = true}) async {
+  /// Restore habits from cloud only. Screen time is never downloaded from cloud.
+  static Future<bool> restoreFromCloud() async {
     if (!isConfigured) return false;
     final token = AuthTokenStore.read();
     if (token.isEmpty) return false;
     final email = await AuthStorageService().getSessionEmail();
     if (email == null || email.isEmpty) return false;
 
-    var restored = false;
     try {
-      if (includeUsage) {
-        restored = await _pullUsage(email) || restored;
-      }
-      restored = await _pullHabitsIfLocalEmpty(email) || restored;
+      return await _pullHabitsIfLocalEmpty(email);
     } catch (e, st) {
       AppLog.e("CloudSyncService.restoreFromCloud failed", error: e, stackTrace: st);
+      return false;
     }
-    return restored;
   }
 
-  /// After login: habits from cloud only if this install has none; never overwrite
-  /// screen time from cloud (phone Usage Access is the source of truth).
+  /// After login: habits from cloud only if this install has none; never pull or
+  /// display screen time from cloud (phone Usage Access is the source of truth).
   static Future<void> syncOnSignIn() async {
     if (!isConfigured) return;
     final token = AuthTokenStore.read();
@@ -42,7 +38,7 @@ abstract final class CloudSyncService {
 
     try {
       await _pullHabitsIfLocalEmpty(email);
-      await pushAll();
+      await _pushHabits(email);
     } catch (e, st) {
       AppLog.e("CloudSyncService.syncOnSignIn failed", error: e, stackTrace: st);
     }
@@ -61,17 +57,6 @@ abstract final class CloudSyncService {
     } catch (e, st) {
       AppLog.e("CloudSyncService.pushAll failed", error: e, stackTrace: st);
     }
-  }
-
-  static Future<bool> _pullUsage(String email) async {
-    final remote = UsageRemoteService();
-    final days = await remote.fetchAllUsageDays(userEmail: email);
-    if (days.isEmpty) return false;
-    final storage = UsageStorageService();
-    for (final day in days) {
-      await storage.saveDay(day);
-    }
-    return true;
   }
 
   /// Only download habits when this device has no local habit data yet.

@@ -12,6 +12,7 @@ import "package:life_pattern_tracker/services/auth_token_store.dart";
 import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/widgets/subpage_scaffold.dart";
+import "package:life_pattern_tracker/widgets/usage_permission_status.dart";
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -43,13 +44,10 @@ class AccountScreen extends ConsumerWidget {
     final cloudAuth = AuthRemoteService.isConfigured;
 
     Future<void> restoreAllFromCloud({bool showResultSnack = false}) async {
-      final ok = await CloudSyncService.restoreFromCloud(includeUsage: true);
-      await ref.read(usageProvider.notifier).reloadFromStorage();
+      final ok = await CloudSyncService.restoreFromCloud();
       await ref.read(habitTrackerProvider.notifier).refresh();
       if (ref.read(usageProvider).hasPermission) {
         await ref.read(usageProvider.notifier).refreshToday();
-      } else {
-        await CloudSyncService.pushAll();
       }
       if (showResultSnack && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -68,10 +66,10 @@ class AccountScreen extends ConsumerWidget {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text("Restore all data from cloud?"),
+          title: const Text("Restore habits from cloud?"),
           content: const Text(
-            "Downloads your saved screen time and habits to this device. "
-            "Use on a new phone or if local data looks wrong.",
+            "Downloads your saved habits to this device. "
+            "Screen time always comes from this phone (Usage Access), not the cloud.",
           ),
           actions: [
             TextButton(
@@ -299,12 +297,14 @@ class AccountScreen extends ConsumerWidget {
         _SectionCard(
           title: "Permissions & data sources",
           children: [
+            const UsagePermissionStatusBar(),
+            const SizedBox(height: 12),
             _AccountMenuTile(
               icon: Icons.phonelink_setup_outlined,
               title: "Usage access",
               subtitle: usage.hasPermission
-                  ? "Granted — screen time is tracked"
-                  : "Required — open Android settings to enable",
+                  ? "Open settings to change"
+                  : "Tap to open Android settings and enable",
               trailingLabel: usage.hasPermission ? "On" : "Off",
               trailingOk: usage.hasPermission,
               onTap: () => ref.read(usageProvider.notifier).openUsageSettings(),
@@ -354,8 +354,8 @@ class AccountScreen extends ConsumerWidget {
               ),
               _AccountMenuTile(
                 icon: Icons.cloud_download_outlined,
-                title: "Restore all data from cloud",
-                subtitle: "Download saved usage and habits to this device",
+                title: "Restore habits from cloud",
+                subtitle: "Screen time stays on this device; habits download from backup",
                 onTap: confirmRestoreAllFromCloud,
               ),
             ],

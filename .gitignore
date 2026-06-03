@@ -1,6 +1,7 @@
 # Local secrets (copy from .env.example)
 .env
 flutter.env
+tester_invite_link.txt
 
 # Miscellaneous
 *.class

@@ -3,6 +3,7 @@ package com.example.life_pattern_tracker
 import android.app.AppOpsManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
@@ -15,6 +16,7 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import java.io.ByteArrayOutputStream
 import android.os.Process
+import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -24,7 +26,9 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import androidx.lifecycle.lifecycleScope
 import io.flutter.embedding.android.FlutterFragmentActivity
+import kotlinx.coroutines.launch
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -32,6 +36,37 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
+
+private fun queryForegroundStats(
+    context: Context,
+    startMillis: Long,
+    endMillis: Long,
+    excludePackage: String? = null
+): Map<String, UsageStats> {
+    val effectiveEnd = minOf(endMillis, System.currentTimeMillis())
+    if (effectiveEnd <= startMillis) return emptyMap()
+
+    val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+    val interval = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        UsageStatsManager.INTERVAL_BEST
+    } else {
+        UsageStatsManager.INTERVAL_DAILY
+    }
+    val stats = manager.queryUsageStats(interval, startMillis, effectiveEnd) ?: return emptyMap()
+
+    val byPkg = LinkedHashMap<String, UsageStats>()
+    for (stat in stats) {
+        val pkg = stat.packageName ?: continue
+        if (excludePackage != null && pkg == excludePackage) continue
+        val foreground = stat.totalTimeInForeground
+        if (foreground <= 0L) continue
+        val existing = byPkg[pkg]
+        if (existing == null || foreground > existing.totalTimeInForeground) {
+            byPkg[pkg] = stat
+        }
+    }
+    return byPkg
+}
 
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "life_pattern_tracker/usage"
@@ -52,6 +87,39 @@ class MainActivity : FlutterFragmentActivity() {
                     "openUsageAccessSettings" -> {
                         openUsageAccessSettings()
                         result.success(true)
+                    }
+                    "openApplicationSettings" -> {
+                        openApplicationSettings()
+                        result.success(true)
+                    }
+                    "getApplicationLabel" -> {
+                        result.success(getApplicationLabel())
+                    }
+                    "getUsageAccessHint" -> {
+                        result.success(
+                            AndroidCompat.usageAccessHint(
+                                applicationContext,
+                                getApplicationLabel()
+                            )
+                        )
+                    }
+                    "getHealthSyncHint" -> {
+                        result.success(AndroidCompat.healthSyncHint())
+                    }
+                    "openHealthConnectApp" -> {
+                        result.success(AndroidCompat.openHealthConnectApp(applicationContext))
+                    }
+                    "openHealthConnectPermissions" -> {
+                        result.success(AndroidCompat.openHealthConnectPermissions(applicationContext))
+                    }
+                    "readHealthSummary" -> {
+                        lifecycleScope.launch {
+                            try {
+                                result.success(HealthConnectBridge.readSummary(applicationContext))
+                            } catch (e: Exception) {
+                                result.error("HEALTH_READ_FAILED", e.message, null)
+                            }
+                        }
                     }
                     "getUsageStats" -> {
                         if (!hasUsagePermission()) {
@@ -100,9 +168,29 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun openUsageAccessSettings() {
-        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
+        AndroidCompat.openFirstResolved(
+            applicationContext,
+            AndroidCompat.usageAccessIntents(applicationContext, packageName)
+        )
+    }
+
+    private fun openApplicationSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        }
+    }
+
+    private fun getApplicationLabel(): String {
+        return try {
+            val info = packageManager.getApplicationInfo(packageName, 0)
+            packageManager.getApplicationLabel(info).toString()
+        } catch (_: Exception) {
+            "Life Pattern Tracker"
+        }
     }
 
     private fun startOfDayMillis(): Long {
@@ -115,35 +203,35 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun getUsageStats(startMillis: Long, endMillis: Long): HashMap<String, Any> {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val packageManager = applicationContext.packageManager
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
+        val byPkg = queryForegroundStats(
+            applicationContext,
             startMillis,
-            endMillis
+            endMillis,
+            applicationContext.packageName
         )
 
         val appList = mutableListOf<HashMap<String, Any>>()
         val hourly = IntArray(24) { 0 }
         var totalMinutes = 0
 
-        for (stat in stats) {
+        for ((pkg, stat) in byPkg) {
             val timeMillis = stat.totalTimeInForeground
-            if (timeMillis <= 0L || stat.packageName == packageName) continue
+            if (timeMillis <= 0L) continue
 
             val minutes = (timeMillis / 60000L).toInt()
             if (minutes <= 0) continue
             totalMinutes += minutes
 
             val appName = try {
-                val appInfo = packageManager.getApplicationInfo(stat.packageName, 0)
+                val appInfo = packageManager.getApplicationInfo(pkg, 0)
                 packageManager.getApplicationLabel(appInfo).toString()
             } catch (e: Exception) {
-                stat.packageName
+                pkg
             }
 
             val appInfo = try {
-                packageManager.getApplicationInfo(stat.packageName, 0)
+                packageManager.getApplicationInfo(pkg, 0)
             } catch (e: Exception) {
                 null
             }
@@ -152,7 +240,7 @@ class MainActivity : FlutterFragmentActivity() {
 
             val appMap = hashMapOf<String, Any>(
                 "appName" to appName,
-                "packageName" to stat.packageName,
+                "packageName" to pkg,
                 "usageTime" to minutes,
                 "lastUsed" to stat.lastTimeUsed,
                 "category" to category
@@ -355,19 +443,15 @@ class ScreenTimeLimitWorker(
         startMillis: Long,
         endMillis: Long
     ): Map<String, Int> {
-        val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val stats = manager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            startMillis,
-            endMillis
-        )
         val out = HashMap<String, Int>()
-        for (s in stats) {
-            val pkg = s.packageName ?: continue
-            if (pkg == context.packageName) continue
-            val minutes = (s.totalTimeInForeground / 60000L).toInt()
-            if (minutes <= 0) continue
-            out[pkg] = (out[pkg] ?: 0) + minutes
+        for ((pkg, stat) in queryForegroundStats(
+            context,
+            startMillis,
+            endMillis,
+            context.packageName
+        )) {
+            val minutes = (stat.totalTimeInForeground / 60000L).toInt()
+            if (minutes > 0) out[pkg] = minutes
         }
         return out
     }

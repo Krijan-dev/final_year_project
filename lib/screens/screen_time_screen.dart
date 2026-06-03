@@ -12,6 +12,7 @@ import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/app_icon_widget.dart";
 import "package:life_pattern_tracker/widgets/app_usage_tile.dart";
+import "package:life_pattern_tracker/widgets/usage_access_prompt.dart";
 import "package:life_pattern_tracker/widgets/usage_bar_chart.dart";
 import "package:life_pattern_tracker/models/app_screen_time_limit.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
@@ -91,7 +92,7 @@ class _ScreenTimeScreenState extends ConsumerState<ScreenTimeScreen> {
             limitsState: limitsState,
           ),
           const SizedBox(height: 16),
-          if (!usage.hasPermission) _PermissionCard(ref: ref),
+          if (!usage.hasPermission) const UsageAccessPromptCard(),
           if (!m.hasUsageData && usage.hasPermission)
             Card(
               child: Padding(
@@ -996,56 +997,12 @@ class _ScreenTimeHeader extends StatelessWidget {
         Text(
           metrics.hasUsageData
               ? "Usage breakdown, trends, and app details."
-              : "Grant usage access in Settings when prompted, or from Account.",
+              : "Enable usage access below to see your screen time.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
       ],
-    );
-  }
-}
-
-class _PermissionCard extends StatelessWidget {
-  const _PermissionCard({required this.ref});
-
-  final WidgetRef ref;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              "Usage access required",
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Android needs Usage Access permission to read screen time and app usage. "
-              "This is enabled in Android Settings (not a standard in-app popup).",
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () => ref.read(usageProvider.notifier).openUsageSettings(),
-              icon: const Icon(Icons.settings),
-              label: const Text("Grant permission (opens Settings)"),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () => ref.read(usageProvider.notifier).checkPermission(),
-              child: const Text("I granted permission"),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

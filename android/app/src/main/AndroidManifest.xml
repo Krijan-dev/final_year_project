@@ -12,6 +12,22 @@
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
         </intent>
+        <intent>
+            <action android:name="android.settings.USAGE_ACCESS_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="package" />
+        </intent>
+        <intent>
+            <action android:name="androidx.health.ACTION_HEALTH_CONNECT_SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="android.health.connect.action.MANAGE_HEALTH_PERMISSIONS" />
+        </intent>
     </queries>
 
     <application
@@ -37,6 +53,10 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Required so Health Connect can show the permission screen on all supported devices. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>
         </activity>
         <meta-data
