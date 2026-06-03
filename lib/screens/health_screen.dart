@@ -550,7 +550,7 @@ class _TipsCard extends StatelessWidget {
       tips.add("Nice sleep. Your recovery window looks solid.");
     }
 
-    tips.add("Use Account → Refresh all data if you changed Health Connect permissions.");
+    tips.add("Pull to refresh on Health after changing Health Connect permissions.");
 
     return Card(
       elevation: 0,

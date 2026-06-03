@@ -26,7 +26,7 @@ class AccountAvatarButton extends ConsumerWidget {
           MaterialPageRoute<void>(
             builder: (ctx) => const SubpageScaffold(
               title: "Account",
-              child: AccountScreen(embeddedInSubpage: true),
+              child: AccountScreen(),
             ),
           ),
         );
