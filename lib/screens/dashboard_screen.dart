@@ -45,6 +45,10 @@ class DashboardScreen extends ConsumerWidget {
           ],
           _DashboardHeader(metrics: m),
           const SizedBox(height: 16),
+          if (!m.hasUsageData) ...[
+            const _FirstOpenStarterCard(),
+            const SizedBox(height: 16),
+          ],
           _TodayOverviewCard(metrics: m),
           const SizedBox(height: 16),
           _WellnessStyleScores(metrics: m),
@@ -311,7 +315,7 @@ class _TodayOverviewCard extends StatelessWidget {
     final theme = Theme.of(context);
     final screenLabel = metrics.hasUsageData
         ? formatMinutes(metrics.screenMinutes)
-        : "No data yet";
+        : "Ready to start";
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -363,6 +367,17 @@ class _TodayOverviewCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
+                    if (!metrics.hasUsageData) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: const [
+                          _StartHintChip(icon: Icons.smartphone, label: "Open Time tab"),
+                          _StartHintChip(icon: Icons.check_circle_outline, label: "Log 1 habit"),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -410,6 +425,148 @@ class _TodayOverviewCard extends StatelessWidget {
                 progress: (metrics.bestStreakDays / 30).clamp(0, 1).toDouble(),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FirstOpenStarterCard extends StatelessWidget {
+  const _FirstOpenStarterCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.beige.withValues(alpha: 0.95),
+            AppColors.greenPale.withValues(alpha: 0.95),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.green.withValues(alpha: 0.32),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: AppColors.green.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.auto_awesome, color: Color(0xFF166534), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Welcome to your personal dashboard",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14532D),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            "Complete these quick steps to unlock AI insights and your daily health score.",
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _StarterStepRow(
+            icon: Icons.looks_one_rounded,
+            text: "Grant usage access in the Time tab",
+          ),
+          const SizedBox(height: 8),
+          const _StarterStepRow(
+            icon: Icons.looks_two_rounded,
+            text: "Log your first habit in the Habits tab",
+          ),
+          const SizedBox(height: 8),
+          const _StarterStepRow(
+            icon: Icons.looks_3_rounded,
+            text: "Pull down to refresh your first insights",
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StarterStepRow extends StatelessWidget {
+  const _StarterStepRow({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(0xFF15803D)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF14532D),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StartHintChip extends StatelessWidget {
+  const _StartHintChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
           ),
         ],
       ),

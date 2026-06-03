@@ -14,7 +14,7 @@ class ThisWeeksHabitsSection extends ConsumerWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final track = cs.outlineVariant.withValues(
-      alpha: theme.brightness == Brightness.dark ? 0.45 : 0.85,
+      alpha: theme.brightness == Brightness.dark ? 0.75 : 0.85,
     );
 
     return Column(

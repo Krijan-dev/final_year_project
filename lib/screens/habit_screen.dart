@@ -423,9 +423,7 @@ class _PresetChip extends StatelessWidget {
     final theme = Theme.of(context);
     final bg = selected
         ? theme.colorScheme.primaryContainer
-        : theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: theme.brightness == Brightness.dark ? 0.45 : 1,
-          );
+        : theme.colorScheme.surfaceContainerHigh;
 
     return Material(
       color: bg,
@@ -1195,9 +1193,7 @@ class _LogRowState extends State<_LogRow> {
     final theme = Theme.of(context);
 
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(
-        alpha: theme.brightness == Brightness.dark ? 0.5 : 1,
-      ),
+      color: theme.colorScheme.surfaceContainerHigh,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: _canExpand ? () => setState(() => _expanded = !_expanded) : null,

@@ -11,8 +11,7 @@ if (-not (Test-Path $envFile)) {
 # Only pass app keys to Flutter. Full .env has SMTP/MongoDB with spaces/comments that
 # break --dart-define-from-file (splits into invalid extra CLI args → black screen on launch).
 #
-# Include DEV_SPOOF_DATA so you can show fake Health/Usage/Habits without granting permissions.
-$flutterKeys = @("GEMINI_API_KEY", "API_BASE_URL", "DEV_SPOOF_DATA")
+$flutterKeys = @("GEMINI_API_KEY", "API_BASE_URL")
 $flutterEnvFile = Join-Path $PSScriptRoot "flutter.env"
 $out = New-Object System.Collections.Generic.List[string]
 foreach ($line in Get-Content $envFile -Encoding UTF8) {

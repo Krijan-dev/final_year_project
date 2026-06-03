@@ -1,3 +1,4 @@
+import "package:flutter_dotenv/flutter_dotenv.dart";
 import "package:google_generative_ai/google_generative_ai.dart";
 import "package:life_pattern_tracker/services/ai_scope.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
@@ -8,10 +9,12 @@ class GeminiService {
 
   static const String _compileTimeApiKey = String.fromEnvironment("GEMINI_API_KEY");
 
-  /// Compile-time (`--dart-define` / `--dart-define-from-file=.env`) or debug Hive override.
+  /// Compile-time defines, bundled `flutter.env`, or debug Hive override.
   static String get resolvedApiKey {
     final fromCompile = _compileTimeApiKey.trim();
     if (fromCompile.isNotEmpty) return fromCompile;
+    final fromEnv = dotenv.maybeGet("GEMINI_API_KEY")?.trim() ?? "";
+    if (fromEnv.isNotEmpty) return fromEnv;
     return GeminiKeyStore.readDebugOverride();
   }
 
