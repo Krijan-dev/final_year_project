@@ -112,6 +112,7 @@ class _ChatPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chat = AppColors.chatSurfaces(AppColors.themeBrightness(Theme.of(context)));
     return Container(
       width: width,
       height: height,
@@ -136,8 +137,8 @@ class _ChatPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: ColoredBox(
-          color: const Color(0xFFF8FAFC),
+        child: Material(
+          color: chat.messageAreaBg,
           child: ChatbotScreen(onClose: onClose),
         ),
       ),

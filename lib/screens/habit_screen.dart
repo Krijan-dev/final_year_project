@@ -10,14 +10,12 @@ import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/screens/habit_detail_screen.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
-const Color _kHabitGreen = Color(0xFF34D399);
-const Color _kHabitGreenDark = Color(0xFF22C55E);
-const Color _kDayIncomplete = Color(0xFFE5E7EB);
-const Color _kMoodPink = Color(0xFFF9A8D4);
+const Color _kHabitGreen = AppColors.heroGreenTop;
 const Color _kAddBlue = Color(0xFF2563EB);
 
 class HabitScreen extends ConsumerWidget {
@@ -442,7 +440,9 @@ class _PresetChip extends StatelessWidget {
                 preset.label,
                 style: theme.textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: selected ? theme.colorScheme.onPrimaryContainer : null,
+                  color: selected
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurface,
                 ),
               ),
               if (alreadyLogged) ...[
@@ -601,7 +601,9 @@ class _MoodTypeChip extends StatelessWidget {
       selectedColor: theme.colorScheme.primaryContainer,
       labelStyle: TextStyle(
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-        color: selected ? theme.colorScheme.onPrimaryContainer : null,
+        color: selected
+            ? theme.colorScheme.onPrimaryContainer
+            : theme.colorScheme.onSurface,
       ),
     );
   }
@@ -623,6 +625,7 @@ class _HabitHeader extends StatelessWidget {
                 "Habit Tracker",
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
             ),
@@ -660,15 +663,11 @@ class _WeeklyProgressCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kHabitGreen, _kHabitGreenDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.greenHeroGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kHabitGreen.withValues(alpha: 0.35),
+            color: AppColors.heroGreenShadow,
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -684,14 +683,15 @@ class _WeeklyProgressCard extends StatelessWidget {
                 Text(
                   "Weekly Progress",
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.greenHeroBody,
+                        fontWeight: FontWeight.w600,
                       ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   "$percent%",
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.greenHeroTitle,
                         fontWeight: FontWeight.w800,
                       ),
                 ),
@@ -711,7 +711,7 @@ class _WeeklyProgressCard extends StatelessWidget {
                 Text(
                   message,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.greenHeroBody,
                       ),
                 ),
                 const SizedBox(height: 10),
@@ -781,12 +781,12 @@ class _HabitQuickJumpChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.18),
-      borderRadius: BorderRadius.circular(999),
+      color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: AppColors.greenHeroChip(),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -795,13 +795,10 @@ class _HabitQuickJumpChip extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 "$title: ${habit.name}",
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: AppColors.greenHeroTileLabel().copyWith(fontSize: 11),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, size: 14, color: Colors.white),
+              const Icon(Icons.chevron_right, size: 14, color: AppColors.greenHeroCaption),
             ],
           ),
         ),
@@ -834,7 +831,10 @@ class _ThisWeeksHabitsCard extends StatelessWidget {
           children: [
             Text(
               "This Week's Habits",
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 16),
             ...List.generate(habits.length, (i) {
@@ -871,6 +871,10 @@ class _HabitWeekRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final accent = AppColors.isDarkTheme(theme)
+        ? AppColors.greenAccent
+        : _kHabitGreen;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -887,8 +891,13 @@ class _HabitWeekRow extends StatelessWidget {
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: habit.iconBackground,
+                    color: AppColors.habitIconSurface(b, habit.iconBackground),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: b == Brightness.dark ? 0.5 : 0.35,
+                      ),
+                    ),
                   ),
                   child: Text(habit.emoji, style: const TextStyle(fontSize: 20)),
                 ),
@@ -901,6 +910,7 @@ class _HabitWeekRow extends StatelessWidget {
                         habit.name,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       Text(
@@ -915,7 +925,7 @@ class _HabitWeekRow extends StatelessWidget {
                 Text(
                   "${habit.percent}%",
                   style: theme.textTheme.titleSmall?.copyWith(
-                    color: _kHabitGreen,
+                    color: accent,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -947,10 +957,12 @@ class _HabitWeekRow extends StatelessWidget {
                           duration: const Duration(milliseconds: 200),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: done ? _kHabitGreen : _kDayIncomplete,
+                            color: done
+                                ? accent
+                                : AppColors.habitDayIncomplete(b),
                             borderRadius: BorderRadius.circular(8),
                             border: isToday
-                                ? Border.all(color: _kHabitGreenDark, width: 2)
+                                ? Border.all(color: accent, width: 2)
                                 : null,
                           ),
                           child: done
@@ -993,6 +1005,7 @@ class _MoodThisWeekCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
     const maxScore = 10.0;
 
     return Card(
@@ -1006,7 +1019,10 @@ class _MoodThisWeekCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     "Mood This Week",
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 Text(
@@ -1056,8 +1072,8 @@ class _MoodThisWeekCard extends StatelessWidget {
                             height: barHeight,
                             decoration: BoxDecoration(
                               color: day.score <= 0
-                                  ? theme.colorScheme.surfaceContainerHighest
-                                  : _kMoodPink,
+                                  ? AppColors.habitDayIncomplete(b)
+                                  : AppColors.moodBarFill(b),
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
@@ -1131,6 +1147,7 @@ class _TodaysLogCard extends StatelessWidget {
                     "Today's Log",
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -1154,7 +1171,7 @@ class _TodaysLogCard extends StatelessWidget {
               Text(
                 "No entries yet. Tap Add and pick an activity.",
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: theme.colorScheme.onSurface,
                 ),
               )
             else
@@ -1216,6 +1233,7 @@ class _LogRowState extends State<_LogRow> {
                           group.title,
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),

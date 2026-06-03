@@ -34,11 +34,13 @@ class AccountScreen extends ConsumerWidget {
     final apiReady = ApiConfig.isConfigured;
 
     Future<void> refreshAll() async {
-      await CloudSyncService.syncOnSignIn();
+      await CloudSyncService.restoreFromCloud(includeUsage: true);
       await ref.read(usageProvider.notifier).reloadFromStorage();
       await ref.read(habitTrackerProvider.notifier).refresh();
       if (ref.read(usageProvider).hasPermission) {
         await ref.read(usageProvider.notifier).refreshToday();
+      } else {
+        await CloudSyncService.pushAll();
       }
     }
 

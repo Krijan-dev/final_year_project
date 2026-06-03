@@ -14,6 +14,7 @@ import "package:life_pattern_tracker/widgets/app_icon_widget.dart";
 import "package:life_pattern_tracker/widgets/app_usage_tile.dart";
 import "package:life_pattern_tracker/widgets/usage_bar_chart.dart";
 import "package:life_pattern_tracker/models/app_screen_time_limit.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
 const Color _kGreen = Color(0xFF22C55E);
@@ -1063,15 +1064,11 @@ class _TodayHeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kGreen, _kGreenDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.greenHeroGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kGreen.withValues(alpha: 0.3),
+            color: AppColors.heroGreenShadow,
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -1083,14 +1080,15 @@ class _TodayHeroCard extends StatelessWidget {
           Text(
             "Today",
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.95),
+              color: AppColors.greenHeroBody,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             formatMinutes(metrics.screenMinutes),
             style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+              color: AppColors.greenHeroTitle,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1098,7 +1096,7 @@ class _TodayHeroCard extends StatelessWidget {
           Text(
             metrics.screenTimeSubtitle,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppColors.greenHeroBody,
             ),
           ),
           const SizedBox(height: 16),
@@ -1115,7 +1113,7 @@ class _TodayHeroCard extends StatelessWidget {
           Text(
             "Daily goal: ${formatMinutes(goal)}",
             style: theme.textTheme.labelSmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: AppColors.greenHeroBody,
             ),
           ),
         ],

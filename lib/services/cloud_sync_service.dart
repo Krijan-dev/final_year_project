@@ -11,8 +11,8 @@ import "package:life_pattern_tracker/utils/app_log.dart";
 abstract final class CloudSyncService {
   static bool get isConfigured => AuthRemoteService.isConfigured;
 
-  /// Download cloud usage + habits into local storage (e.g. after login on a new phone).
-  static Future<bool> restoreFromCloud() async {
+  /// Full restore (usage + habits). Use from Account -> Refresh all data.
+  static Future<bool> restoreFromCloud({bool includeUsage = true}) async {
     if (!isConfigured) return false;
     final token = AuthTokenStore.read();
     if (token.isEmpty) return false;
@@ -21,17 +21,31 @@ abstract final class CloudSyncService {
 
     var restored = false;
     try {
-      restored = await _pullUsage(email) || restored;
-      restored = await _pullHabits(email) || restored;
+      if (includeUsage) {
+        restored = await _pullUsage(email) || restored;
+      }
+      restored = await _pullHabitsIfLocalEmpty(email) || restored;
     } catch (e, st) {
       AppLog.e("CloudSyncService.restoreFromCloud failed", error: e, stackTrace: st);
     }
     return restored;
   }
 
+  /// After login: habits from cloud only if this install has none; never overwrite
+  /// screen time from cloud (phone Usage Access is the source of truth).
   static Future<void> syncOnSignIn() async {
-    await restoreFromCloud();
-    await pushAll();
+    if (!isConfigured) return;
+    final token = AuthTokenStore.read();
+    if (token.isEmpty) return;
+    final email = await AuthStorageService().getSessionEmail();
+    if (email == null || email.isEmpty) return;
+
+    try {
+      await _pullHabitsIfLocalEmpty(email);
+      await pushAll();
+    } catch (e, st) {
+      AppLog.e("CloudSyncService.syncOnSignIn failed", error: e, stackTrace: st);
+    }
   }
 
   static Future<void> pushAll() async {
@@ -60,7 +74,11 @@ abstract final class CloudSyncService {
     return true;
   }
 
-  static Future<bool> _pullHabits(String email) async {
+  /// Only download habits when this device has no local habit data yet.
+  static Future<bool> _pullHabitsIfLocalEmpty(String email) async {
+    final local = await HabitTrackerStorageService().loadRaw();
+    if (local != null) return false;
+
     final snap = await HabitRemoteService().fetchLatestSnapshot(userEmail: email);
     if (snap == null || snap.isEmpty) return false;
     final weekKey = snap["weekKey"] as String? ?? "";
