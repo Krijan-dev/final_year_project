@@ -47,7 +47,7 @@ When `API_BASE_URL` is set (e.g. your Render URL) and you **register or log in**
 3. **Uploads usage** after each refresh (today’s day + full history).
 4. **Uploads habits/mood/logs** whenever you change the habit tracker (current week snapshot).
 
-Local Hive storage still works offline. On sign-in, cloud data is pulled first, then local changes are pushed. Use **Account → Refresh all data** to pull again manually.
+Local Hive storage still works offline. On sign-in, cloud data is pulled first, then local changes are pushed. Use **Account → Restore all data from cloud** to download your backup again manually.
 
 ## 5) What gets saved in MongoDB
 

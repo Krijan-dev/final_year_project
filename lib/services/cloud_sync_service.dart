@@ -11,7 +11,7 @@ import "package:life_pattern_tracker/utils/app_log.dart";
 abstract final class CloudSyncService {
   static bool get isConfigured => AuthRemoteService.isConfigured;
 
-  /// Full restore (usage + habits). Use from Account -> Refresh all data.
+  /// Full restore (usage + habits). Use from Account -> Restore all data from cloud.
   static Future<bool> restoreFromCloud({bool includeUsage = true}) async {
     if (!isConfigured) return false;
     final token = AuthTokenStore.read();
