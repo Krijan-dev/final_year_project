@@ -48,11 +48,15 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     if (_cloudSyncRunning) return;
     _cloudSyncRunning = true;
     try {
-      await CloudSyncService.syncOnSignIn();
-      await ref.read(usageProvider.notifier).reloadFromStorage();
-      await ref.read(habitTrackerProvider.notifier).refresh();
-      if (ref.read(usageProvider).hasPermission) {
+      final usage = ref.read(usageProvider);
+      // Phone usage stats always win over cloud on this device.
+      if (usage.hasPermission) {
         await ref.read(usageProvider.notifier).refreshToday();
+      }
+      await CloudSyncService.syncOnSignIn();
+      await ref.read(habitTrackerProvider.notifier).refresh();
+      if (!usage.hasPermission) {
+        await ref.read(usageProvider.notifier).reloadFromStorage();
       }
     } finally {
       _cloudSyncRunning = false;

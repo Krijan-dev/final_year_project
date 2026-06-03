@@ -6,9 +6,7 @@ import "package:life_pattern_tracker/services/gemini_service.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
-
-const Color _kGreen = Color(0xFF34D399);
-const Color _kGreenDark = Color(0xFF22C55E);
+import "package:life_pattern_tracker/widgets/green_hero_metric_tile.dart";
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -320,15 +318,11 @@ class _TodayOverviewCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kGreen, _kGreenDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.greenHeroGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kGreen.withValues(alpha: 0.3),
+            color: AppColors.heroGreenShadow,
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -340,7 +334,7 @@ class _TodayOverviewCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.dashboard_outlined, color: Colors.white, size: 22),
+              const Icon(Icons.dashboard_outlined, color: AppColors.greenHeroCaption, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -349,14 +343,15 @@ class _TodayOverviewCard extends StatelessWidget {
                     Text(
                       "Today's overview",
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.95),
+                        color: AppColors.greenHeroBody,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       screenLabel,
                       style: theme.textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.greenHeroTitle,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -364,7 +359,7 @@ class _TodayOverviewCard extends StatelessWidget {
                     Text(
                       metrics.screenTimeSubtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.greenHeroBody,
                       ),
                     ),
                     if (!metrics.hasUsageData) ...[
@@ -385,7 +380,7 @@ class _TodayOverviewCard extends StatelessWidget {
                 Text(
                   "${(metrics.screenProgress * 100).round()}%",
                   style: theme.textTheme.displayMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.35),
+                    color: AppColors.greenHeroScore,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -400,25 +395,25 @@ class _TodayOverviewCard extends StatelessWidget {
             crossAxisSpacing: 10,
             childAspectRatio: 1.28,
             children: [
-              _HeroMetricTile(
+              GreenHeroMetricTile(
                 icon: Icons.track_changes_outlined,
                 label: "Productivity",
                 value: metrics.hasUsageData ? "${metrics.productivityScore}" : "—",
                 progress: metrics.hasUsageData ? metrics.productivityScore / 100 : 0,
               ),
-              _HeroMetricTile(
+              GreenHeroMetricTile(
                 icon: Icons.center_focus_strong,
                 label: "Focus",
                 value: metrics.hasUsageData ? "${metrics.focusScore}" : "—",
                 progress: metrics.hasUsageData ? metrics.focusScore / 100 : 0,
               ),
-              _HeroMetricTile(
+              GreenHeroMetricTile(
                 icon: Icons.calendar_view_week_rounded,
                 label: "Habits",
                 value: "${metrics.habitCompletionPercent}%",
                 progress: metrics.habitCompletionPercent / 100,
               ),
-              _HeroMetricTile(
+              GreenHeroMetricTile(
                 icon: Icons.local_fire_department_outlined,
                 label: "Best streak",
                 value: "${metrics.bestStreakDays}d",
@@ -438,22 +433,14 @@ class _FirstOpenStarterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final welcome = AppColors.welcomeStarterCard(AppColors.themeBrightness(theme));
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.beige.withValues(alpha: 0.95),
-            AppColors.greenPale.withValues(alpha: 0.95),
-          ],
-        ),
+        gradient: welcome.gradient,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.green.withValues(alpha: 0.32),
-        ),
+        border: Border.all(color: welcome.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -466,7 +453,7 @@ class _FirstOpenStarterCard extends StatelessWidget {
                   color: AppColors.green.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.auto_awesome, color: Color(0xFF166534), size: 20),
+                child: Icon(Icons.auto_awesome, color: welcome.step, size: 20),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -474,7 +461,7 @@ class _FirstOpenStarterCard extends StatelessWidget {
                   "Welcome to your personal dashboard",
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF14532D),
+                    color: welcome.title,
                   ),
                 ),
               ),
@@ -484,7 +471,7 @@ class _FirstOpenStarterCard extends StatelessWidget {
           Text(
             "Complete these quick steps to unlock AI insights and your daily health score.",
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: welcome.body,
             ),
           ),
           const SizedBox(height: 12),
@@ -520,16 +507,17 @@ class _StarterStepRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final stepColor = AppColors.welcomeStarterCard(AppColors.themeBrightness(theme)).step;
     return Row(
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF15803D)),
+        Icon(icon, size: 18, color: stepColor),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF14532D),
+              color: stepColor,
             ),
           ),
         ),
@@ -551,88 +539,15 @@ class _StartHintChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-      ),
+      decoration: AppColors.greenHeroChip(),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.white),
+          Icon(icon, size: 14, color: AppColors.greenHeroCaption),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMetricTile extends StatelessWidget {
-  const _HeroMetricTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.progress,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.white, size: 18),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 1),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 5),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
-              minHeight: 4,
-              backgroundColor: Colors.white24,
-              color: Colors.white,
-            ),
+            style: AppColors.greenHeroTileLabel().copyWith(fontSize: 11),
           ),
         ],
       ),
@@ -648,6 +563,10 @@ class _WellnessStyleScores extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final productivity = AppColors.scoreProductivity(b);
+    final focus = AppColors.scoreFocus(b);
+    final habitBanner = AppColors.habitCompletionBanner(b);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -671,9 +590,10 @@ class _WellnessStyleScores extends StatelessWidget {
                 child: _ScoreTile(
                   score: metrics.hasUsageData ? metrics.productivityScore : 0,
                   label: "Productivity",
-                  background: const Color(0xFFECFDF5),
-                  foreground: _kGreenDark,
-                  track: _kGreenDark.withValues(alpha: 0.18),
+                  background: productivity.background,
+                  foreground: productivity.foreground,
+                  track: productivity.track,
+                  border: productivity.border,
                   showDash: !metrics.hasUsageData,
                 ),
               ),
@@ -682,9 +602,10 @@ class _WellnessStyleScores extends StatelessWidget {
                 child: _ScoreTile(
                   score: metrics.hasUsageData ? metrics.focusScore : 0,
                   label: "Focus",
-                  background: const Color(0xFFF5F3FF),
-                  foreground: const Color(0xFF7C3AED),
-                  track: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                  background: focus.background,
+                  foreground: focus.foreground,
+                  track: focus.track,
+                  border: focus.border,
                   showDash: !metrics.hasUsageData,
                 ),
               ),
@@ -696,20 +617,16 @@ class _WellnessStyleScores extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 28),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFECFDF5), Color(0xFFD1FAE5)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            gradient: habitBanner.gradient,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF86EFAC)),
+            border: Border.all(color: habitBanner.border),
           ),
           child: Column(
             children: [
               Text(
                 "${metrics.habitCompletionPercent}",
                 style: theme.textTheme.displayMedium?.copyWith(
-                  color: const Color(0xFF16A34A),
+                  color: habitBanner.value,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -717,14 +634,14 @@ class _WellnessStyleScores extends StatelessWidget {
               Text(
                 "Weekly habit completion %",
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: habitBanner.subtitle,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 metrics.habitSubtitle,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                  color: habitBanner.subtitle,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -743,6 +660,7 @@ class _ScoreTile extends StatelessWidget {
     required this.background,
     required this.foreground,
     required this.track,
+    required this.border,
     this.showDash = false,
   });
 
@@ -751,6 +669,7 @@ class _ScoreTile extends StatelessWidget {
   final Color background;
   final Color foreground;
   final Color track;
+  final Color border;
   final bool showDash;
 
   @override
@@ -761,6 +680,7 @@ class _ScoreTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
       ),
       child: Column(
         children: [
@@ -775,7 +695,9 @@ class _ScoreTile extends StatelessWidget {
           Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: AppColors.isDarkTheme(theme)
+                  ? AppColors.darkOnSurfaceVariant
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -925,24 +847,26 @@ class _InsightLineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppColors.insightAmber(AppColors.themeBrightness(theme));
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: colors.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDE68A)),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.tips_and_updates_outlined, color: Color(0xFFD97706), size: 26),
+          Icon(Icons.tips_and_updates_outlined, color: colors.icon, size: 26),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               text,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface,
+                color: colors.text,
                 height: 1.4,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

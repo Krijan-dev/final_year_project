@@ -2,11 +2,10 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/models/insight_models.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
-
-const Color _kHealthGreen = Color(0xFF34D399);
-const Color _kHealthGreenDark = Color(0xFF22C55E);
+import "package:life_pattern_tracker/widgets/green_hero_metric_tile.dart";
 
 class InsightsScreen extends ConsumerWidget {
   const InsightsScreen({super.key});
@@ -134,7 +133,10 @@ class _InsightsHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 "Insights",
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
             ),
             const AccountAvatarButton(),
@@ -168,18 +170,21 @@ class _HealthRiskScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final subtitle = switch (label.toLowerCase()) {
+      "low" => "Overall health status looks great!",
+      "medium" => "A few areas could use attention this week.",
+      "high" => "Consider focusing on sleep, habits, and screen time.",
+      _ => "Based on your usage and habit data.",
+    };
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kHealthGreen, _kHealthGreenDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppColors.greenHeroGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _kHealthGreen.withValues(alpha: 0.3),
+            color: AppColors.heroGreenShadow,
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -191,7 +196,7 @@ class _HealthRiskScoreCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.shield_outlined, color: Colors.white, size: 22),
+              const Icon(Icons.shield_outlined, color: AppColors.greenHeroCaption, size: 22),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -200,22 +205,23 @@ class _HealthRiskScoreCard extends StatelessWidget {
                     Text(
                       "Health Risk Score",
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.95),
+                        color: AppColors.greenHeroBody,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       label,
                       style: theme.textTheme.displaySmall?.copyWith(
-                        color: Colors.white,
+                        color: AppColors.greenHeroTitle,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Overall health status looks great!",
+                      subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.greenHeroBody,
                       ),
                     ),
                   ],
@@ -224,7 +230,7 @@ class _HealthRiskScoreCard extends StatelessWidget {
               Text(
                 "$score",
                 style: theme.textTheme.displayMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.35),
+                  color: AppColors.greenHeroScore,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -238,51 +244,16 @@ class _HealthRiskScoreCard extends StatelessWidget {
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
             childAspectRatio: 1.65,
-            children: metrics.map((m) => _HealthMetricTile(metric: m)).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HealthMetricTile extends StatelessWidget {
-  const _HealthMetricTile({required this.metric});
-
-  final HealthRiskMetric metric;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(metric.icon, color: Colors.white, size: 20),
-          const SizedBox(height: 8),
-          Text(
-            metric.label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            metric.status,
-            style: TextStyle(
-              color: metric.isWarning ? const Color(0xFFFEF08A) : Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+            children: metrics
+                .map(
+                  (m) => GreenHeroMetricTile(
+                    icon: m.icon,
+                    label: m.label,
+                    value: m.status,
+                    warning: m.isWarning,
+                  ),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -298,20 +269,22 @@ class _OverallWellnessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final focus = AppColors.scoreFocus(b);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 28),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F3FF),
+        color: focus.background,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDDD6FE)),
+        border: Border.all(color: focus.border),
       ),
       child: Column(
         children: [
           Text(
             "$score",
             style: theme.textTheme.displayMedium?.copyWith(
-              color: const Color(0xFF7C3AED),
+              color: focus.foreground,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -319,7 +292,9 @@ class _OverallWellnessCard extends StatelessWidget {
           Text(
             "Overall Wellness Score",
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: AppColors.isDarkTheme(theme)
+                  ? AppColors.darkOnSurfaceVariant
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -381,18 +356,24 @@ class _WellnessScoreTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final palette = item.label == "Mental"
+        ? AppColors.scoreFocus(b)
+        : AppColors.scoreProductivity(b);
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: item.background,
+        color: palette.background,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.border),
       ),
       child: Column(
         children: [
           Text(
             "${item.score}",
             style: theme.textTheme.headlineLarge?.copyWith(
-              color: item.foreground,
+              color: palette.foreground,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -400,7 +381,9 @@ class _WellnessScoreTile extends StatelessWidget {
           Text(
             item.label,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+              color: AppColors.isDarkTheme(theme)
+                  ? AppColors.darkOnSurfaceVariant
+                  : theme.colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -432,7 +415,10 @@ class _SectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ),
         if (badge != null)
@@ -455,17 +441,26 @@ class _RecommendationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tint = AppColors.tintedCard(
+      AppColors.themeBrightness(theme),
+      lightBackground: item.background,
+      lightBorder: item.border,
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: item.background,
+        color: tint.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: item.border),
+        border: Border.all(color: tint.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(item.icon, color: item.iconColor, size: 28),
+          Icon(
+            item.icon,
+            color: AppColors.isDarkTheme(theme) ? tint.text : item.iconColor,
+            size: 28,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -479,6 +474,7 @@ class _RecommendationCard extends StatelessWidget {
                         item.title,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
+                          color: tint.text,
                         ),
                       ),
                     ),
@@ -504,14 +500,14 @@ class _RecommendationCard extends StatelessWidget {
                 Text(
                   item.description,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: tint.subtitle,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   item.hint,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: tint.subtitle,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -532,16 +528,25 @@ class _AiInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tint = AppColors.tintedFromBackground(
+      AppColors.themeBrightness(theme),
+      tip.background,
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: tip.background,
+        color: tint.background,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tint.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(tip.icon, color: tip.iconColor, size: 28),
+          Icon(
+            tip.icon,
+            color: AppColors.isDarkTheme(theme) ? tint.text : tip.iconColor,
+            size: 28,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -549,20 +554,23 @@ class _AiInsightCard extends StatelessWidget {
               children: [
                 Text(
                   tip.title,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: tint.text,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   tip.description,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: tint.subtitle,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   tip.hint,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                    color: tint.subtitle,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -583,6 +591,9 @@ class _WeeklyTrendsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final trendsIcon =
+        b == Brightness.dark ? AppColors.greenAccent : const Color(0xFF2563EB);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -591,7 +602,7 @@ class _WeeklyTrendsCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.trending_up, color: Color(0xFF2563EB), size: 22),
+                Icon(Icons.trending_up, color: trendsIcon, size: 22),
                 const SizedBox(width: 8),
                 Text(
                   "Weekly Trends",
@@ -623,22 +634,27 @@ class _TrendRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final panel = AppColors.subtlePanel(b);
     final neutral = item.changePercent == 0;
     final color = neutral
         ? theme.colorScheme.onSurfaceVariant
         : item.isPositive
-            ? const Color(0xFF16A34A)
+            ? (b == Brightness.dark ? AppColors.greenAccent : const Color(0xFF16A34A))
             : const Color(0xFFEF4444);
     final fillFraction = neutral
         ? 0.0
         : (item.changePercent.abs() / _maxTrendPercent).clamp(0.0, 1.0);
+    final trackBg = b == Brightness.dark
+        ? AppColors.darkSurfaceElevated
+        : theme.colorScheme.outlineVariant.withValues(alpha: 0.35);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: panel.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(color: panel.border.withValues(alpha: 0.65)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -648,7 +664,10 @@ class _TrendRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.label,
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
               if (!neutral)
@@ -678,7 +697,7 @@ class _TrendRow extends StatelessWidget {
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      const ColoredBox(color: Colors.white),
+                      ColoredBox(color: trackBg),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: SizedBox(

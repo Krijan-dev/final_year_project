@@ -12,6 +12,7 @@ import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
 import "package:life_pattern_tracker/utils/week_calendar.dart";
@@ -66,10 +67,8 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
     );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         title: Text(selectedHabit.name),
         actions: [
           Padding(
@@ -86,7 +85,8 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
           ),
         ],
       ),
-      body: ListView(
+      body: AppGradientBackground(
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           _HeroHabitCard(habit: selectedHabit),
@@ -115,6 +115,7 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
             onDismiss: (id) => setState(() => _dismissedInsightIds.add(id)),
           ),
         ],
+      ),
       ),
     );
   }
@@ -204,11 +205,11 @@ class _AiInsightMessagesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final panel = AppColors.subtlePanel(theme.brightness);
     final visible = messages.where((m) => !dismissedIds.contains(m.id)).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
     return Card(
-      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -224,9 +225,9 @@ class _AiInsightMessagesCard extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: panel.background,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: panel.border),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,

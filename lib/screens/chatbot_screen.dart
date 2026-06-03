@@ -13,13 +13,12 @@ import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/gemini_service.dart";
 import "package:life_pattern_tracker/services/insight_context_builder.dart";
 import "package:life_pattern_tracker/services/support_remote_service.dart";
+import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/crisis_support.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 
 const Color _kChatGreen = Color(0xFF22C55E);
 const Color _kChatGreenDark = Color(0xFF16A34A);
-const Color _kAssistantBubble = Color(0xFFFFFFFF);
-const Color _kInputFill = Color(0xFFF3F4F6);
 
 enum _ChatMode { assistant, human }
 
@@ -200,7 +199,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     setState(() {
       _supportStatus = result.conversation?.status ?? _supportStatus;
       if (full) {
-        _messages.clear();
+        _messages.removeWhere((m) => m.remoteId != null);
       }
       for (final m in incoming) {
         final exists = _messages.any((x) => x.remoteId == m.id);
@@ -214,14 +213,19 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           ),
         );
       }
-      if (full && _messages.isEmpty) {
-        _messages.add(
-          const _ChatMessage(
-            text: "You're in the queue. A team member will reply here shortly.",
-            isUser: false,
-            fromSupport: true,
-          ),
-        );
+      final hasSynced = _messages.any((m) => m.remoteId != null || m.isUser);
+      if (!hasSynced) {
+        _messages
+          ..clear()
+          ..add(
+            _ChatMessage(
+              text: incoming.isEmpty
+                  ? "You're in the queue. A team member will reply here shortly."
+                  : "Thanks for reaching out. You're connected to our support team.",
+              isUser: false,
+              fromSupport: true,
+            ),
+          );
       }
       if (incoming.isNotEmpty) {
         _lastPollAt = incoming.last.createdAt;
@@ -260,19 +264,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context);
+    final theme = Theme.of(context);
     final isHuman = _mode == _ChatMode.human;
-    return Theme(
-      data: base.copyWith(
-        scaffoldBackgroundColor: Colors.transparent,
-        colorScheme: base.colorScheme.copyWith(
-          primary: _kChatGreen,
-          onPrimary: Colors.white,
-          primaryContainer: const Color(0xFFECFDF5),
-          surfaceContainerHighest: _kInputFill,
-        ),
-      ),
-      child: Column(
+    final chat = AppColors.chatSurfaces(AppColors.themeBrightness(theme));
+    return Column(
         children: [
           if (widget.onClose != null)
             _PopupChatHeader(
@@ -301,27 +296,28 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
                 _humanError!,
-                style: TextStyle(color: base.colorScheme.error, fontSize: 12),
+                style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
               ),
             ),
           Expanded(
-            child: _humanLoading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      return _ChatBubble(message: _messages[index]);
-                    },
-                  ),
+            child: ColoredBox(
+              color: chat.messageAreaBg,
+              child: _humanLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        return _ChatBubble(message: _messages[index], chat: chat);
+                      },
+                    ),
+            ),
           ),
           if (!isHuman)
             DecoratedBox(
               decoration: BoxDecoration(
-                color: widget.onClose != null
-                    ? const Color(0xFFF8FAFC)
-                    : Colors.transparent,
+                color: widget.onClose != null ? chat.promptBar : Colors.transparent,
               ),
               child: _QuickPromptsBar(
                 prompts: _quickPrompts,
@@ -339,7 +335,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             sendEnabled: !_assistantBusy,
           ),
         ],
-      ),
     );
   }
 
@@ -531,6 +526,7 @@ class _TalkToHumanButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final prod = AppColors.scoreProductivity(AppColors.themeBrightness(Theme.of(context)));
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
@@ -538,9 +534,9 @@ class _TalkToHumanButton extends StatelessWidget {
         icon: Icon(Icons.support_agent, size: compact ? 18 : 20),
         label: Text(compact ? "Talk to a real person" : "Chat with a real person"),
         style: OutlinedButton.styleFrom(
-          foregroundColor: _kChatGreenDark,
-          side: const BorderSide(color: Color(0xFFD1FAE5)),
-          backgroundColor: const Color(0xFFECFDF5),
+          foregroundColor: prod.foreground,
+          side: BorderSide(color: prod.track),
+          backgroundColor: prod.background,
           padding: EdgeInsets.symmetric(vertical: compact ? 8 : 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: TextStyle(fontSize: compact ? 12 : 14),
@@ -563,6 +559,7 @@ class _HumanSupportBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final chat = AppColors.chatSurfaces(AppColors.themeBrightness(Theme.of(context)));
     final label = status == "active"
         ? "Connected — support team"
         : loading
@@ -570,19 +567,19 @@ class _HumanSupportBar extends StatelessWidget {
             : "Waiting for support team";
 
     return Container(
-      color: const Color(0xFFEFF6FF),
+      color: chat.humanBarBg,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.headset_mic, color: Color(0xFF2563EB), size: 20),
+          Icon(Icons.headset_mic, color: chat.humanBarText, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF1E40AF),
+                color: chat.humanBarText,
               ),
             ),
           ),
@@ -683,13 +680,13 @@ class _AssistantHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final chat = AppColors.chatSurfaces(AppColors.themeBrightness(theme));
     return Card(
-      color: Colors.white,
+      color: chat.assistantCard,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: _kChatGreen.withValues(alpha: 0.15)),
+        side: BorderSide(color: chat.assistantBorder),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -711,13 +708,16 @@ class _AssistantHeader extends StatelessWidget {
                 children: [
                   Text(
                     "Life Pattern Assistant",
-                    style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: chat.assistantText,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     "Powered by your usage & habit data",
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
+                      color: chat.assistantText.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -731,14 +731,26 @@ class _AssistantHeader extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message});
+  const _ChatBubble({required this.message, required this.chat});
 
   final _ChatMessage message;
+  final ({
+    Color messageAreaBg,
+    Color assistantCard,
+    Color assistantBorder,
+    Color assistantText,
+    Color supportBubbleBg,
+    Color supportBubbleText,
+    Color inputFill,
+    Color inputText,
+    Color humanBarBg,
+    Color humanBarText,
+    Color promptBar,
+  }) chat;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final isUser = message.isUser;
     final supportBubble = message.fromSupport && !isUser;
 
@@ -753,7 +765,7 @@ class _ChatBubble extends StatelessWidget {
               child: Text(
                 "Support team",
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF2563EB),
+                  color: chat.supportBubbleText,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -766,17 +778,21 @@ class _ChatBubble extends StatelessWidget {
               color: isUser
                   ? _kChatGreen
                   : supportBubble
-                      ? const Color(0xFFEFF6FF)
-                      : _kAssistantBubble,
+                      ? chat.supportBubbleBg
+                      : chat.assistantCard,
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(18),
                 topRight: const Radius.circular(18),
                 bottomLeft: Radius.circular(isUser ? 18 : 4),
                 bottomRight: Radius.circular(isUser ? 4 : 18),
               ),
-              border: supportBubble
-                  ? Border.all(color: const Color(0xFFBFDBFE))
-                  : null,
+              border: Border.all(
+                color: isUser
+                    ? _kChatGreenDark.withValues(alpha: 0.5)
+                    : supportBubble
+                        ? const Color(0xFF3B82F6).withValues(alpha: 0.45)
+                        : chat.assistantBorder,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -794,14 +810,14 @@ class _ChatBubble extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: cs.primary.withValues(alpha: 0.8),
+                          color: _kChatGreen,
                         ),
                       ),
                       const SizedBox(width: 10),
                       Text(
                         message.text,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurfaceVariant,
+                          color: chat.assistantText.withValues(alpha: 0.75),
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -813,8 +829,8 @@ class _ChatBubble extends StatelessWidget {
                       color: isUser
                           ? Colors.white
                           : supportBubble
-                              ? const Color(0xFF1E3A8A)
-                              : cs.onSurface,
+                              ? chat.supportBubbleText
+                              : chat.assistantText,
                       height: 1.4,
                     ),
                   ),
@@ -836,6 +852,7 @@ class _QuickPromptsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final prod = AppColors.scoreProductivity(AppColors.themeBrightness(Theme.of(context)));
     return SizedBox(
       height: 44,
       child: ListView.separated(
@@ -847,10 +864,10 @@ class _QuickPromptsBar extends StatelessWidget {
           return ActionChip(
             label: Text(
               prompts[index],
-              style: const TextStyle(fontSize: 12, color: _kChatGreenDark),
+              style: TextStyle(fontSize: 12, color: prod.foreground),
             ),
-            backgroundColor: const Color(0xFFECFDF5),
-            side: const BorderSide(color: Color(0xFFD1FAE5)),
+            backgroundColor: prod.background,
+            side: BorderSide(color: prod.track),
             onPressed: () => onTap(prompts[index]),
           );
         },
@@ -876,9 +893,15 @@ class _ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final b = AppColors.themeBrightness(theme);
+    final chat = AppColors.chatSurfaces(b);
+    final borderColor =
+        b == Brightness.dark ? theme.colorScheme.outlineVariant : Colors.grey.shade200;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: chat.promptBar,
         border: Border(
           top: BorderSide(color: _kChatGreen.withValues(alpha: 0.12)),
         ),
@@ -904,14 +927,19 @@ class _ChatInputBar extends StatelessWidget {
                   maxLines: compact ? 3 : 4,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => onSend(),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: chat.inputText,
+                    fontSize: compact ? 13 : 14,
+                  ),
+                  cursorColor: _kChatGreen,
                   decoration: InputDecoration(
                     hintText: hint,
                     hintStyle: TextStyle(
-                      color: Colors.grey.shade500,
+                      color: chat.inputText.withValues(alpha: 0.55),
                       fontSize: compact ? 13 : 14,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF1F5F9),
+                    fillColor: chat.inputFill,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 14,
                       vertical: compact ? 10 : 12,
@@ -922,7 +950,7 @@ class _ChatInputBar extends StatelessWidget {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
+                      borderSide: BorderSide(color: borderColor),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
