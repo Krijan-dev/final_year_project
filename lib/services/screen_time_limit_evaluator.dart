@@ -1,8 +1,6 @@
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
 import "package:life_pattern_tracker/services/app_screen_time_limit_storage.dart";
 import "package:life_pattern_tracker/services/screen_time_notification_service.dart";
-import "package:life_pattern_tracker/utils/dev_spoof.dart";
-
 /// Compares today's usage against saved limits and fires at most one notification per app per day.
 class ScreenTimeLimitEvaluator {
   ScreenTimeLimitEvaluator({
@@ -16,9 +14,6 @@ class ScreenTimeLimitEvaluator {
 
   Future<void> evaluate(DailyUsageModel? today) async {
     if (today == null) return;
-    if (DevSpoof.enabled) {
-      // Optional: still evaluate so spoof demos notifications; user may want real notifs off.
-    }
 
     final limits = await _storage.loadAll();
     if (limits.isEmpty) return;

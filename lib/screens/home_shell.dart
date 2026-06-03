@@ -92,15 +92,16 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       });
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBg = isDark ? const Color(0xFF111420) : Colors.white;
+    final scheme = Theme.of(context).colorScheme;
+    final navBg = scheme.brightness == Brightness.dark
+        ? AppColors.darkNavBar
+        : Colors.white;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           AppGradientBackground(
-            dark: isDark,
             child: SafeArea(
               bottom: true,
               child: Column(

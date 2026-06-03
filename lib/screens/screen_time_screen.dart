@@ -995,7 +995,7 @@ class _ScreenTimeHeader extends StatelessWidget {
         Text(
           metrics.hasUsageData
               ? "Usage breakdown, trends, and app details."
-              : "Grant usage access under More → Account, or use dev spoof there.",
+              : "Grant usage access in Settings when prompted, or from Account.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

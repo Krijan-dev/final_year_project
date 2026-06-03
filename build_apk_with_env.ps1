@@ -1,10 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$envFile = Join-Path $PSScriptRoot ".env"
-if (-not (Test-Path $envFile)) {
-    Write-Host "Missing .env. Copy .env.example to .env and set GEMINI_API_KEY." -ForegroundColor Yellow
-    exit 1
-}
+& (Join-Path $PSScriptRoot "scripts\sync_flutter_env.ps1")
 
-flutter build apk "--dart-define-from-file=$envFile" @args
+$flutterEnvFile = Join-Path $PSScriptRoot "flutter.env"
+flutter build apk --release --dart-define-from-file="$flutterEnvFile" @args

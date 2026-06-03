@@ -3,7 +3,6 @@ import "dart:io";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:health/health.dart";
-import "package:life_pattern_tracker/utils/dev_spoof.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 
@@ -48,51 +47,6 @@ class _HealthScreenState extends State<HealthScreen> {
     });
 
     try {
-      if (DevSpoof.enabled) {
-        final now = DateTime.now();
-        final level = DevSpoof.level;
-
-        final stepsToday = switch (level) {
-          DevSpoofLevel.best => 8600,
-          DevSpoofLevel.medium => 5600,
-          DevSpoofLevel.bad => 2300,
-          DevSpoofLevel.off => 0,
-        };
-
-        final lastNightSleepHours = switch (level) {
-          DevSpoofLevel.best => 7.6,
-          DevSpoofLevel.medium => 6.4,
-          DevSpoofLevel.bad => 5.1,
-          DevSpoofLevel.off => 0.0,
-        };
-
-        // 7-day trend bars (Mon..Sun based on dates).
-        final startOf7Days = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 6));
-        final steps7d = <_DaySteps>[];
-        final base = stepsToday;
-        for (var i = 0; i < 7; i++) {
-          final day = startOf7Days.add(Duration(days: i));
-          // Deterministic-ish wave so the UI looks alive.
-          final wave = switch (level) {
-            DevSpoofLevel.best => [0.75, 0.85, 0.80, 0.95, 1.0, 0.98, 0.82][i],
-            DevSpoofLevel.medium => [0.55, 0.70, 0.65, 0.80, 0.90, 0.78, 0.60][i],
-            DevSpoofLevel.bad => [0.35, 0.40, 0.45, 0.55, 0.60, 0.50, 0.42][i],
-            DevSpoofLevel.off => 0.0,
-          };
-          final s = (base * wave).round();
-          steps7d.add(_DaySteps(label: _weekdayLabel(day), steps: s));
-        }
-
-        if (!mounted) return;
-        setState(() {
-          _loading = false;
-          _stepsToday = stepsToday;
-          _sleepHoursLastNight = lastNightSleepHours;
-          _stepsLast7Days = steps7d;
-        });
-        return;
-      }
-
       final health = Health();
       await health.configure();
 

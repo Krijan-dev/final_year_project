@@ -1,7 +1,6 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:life_pattern_tracker/providers/auth_provider.dart";
-import "package:life_pattern_tracker/providers/dev_spoof_provider.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/theme_provider.dart";
 import "package:life_pattern_tracker/providers/usage_provider.dart";
@@ -9,7 +8,6 @@ import "package:life_pattern_tracker/services/api_config.dart";
 import "package:life_pattern_tracker/services/auth_remote_service.dart";
 import "package:life_pattern_tracker/services/cloud_sync_service.dart";
 import "package:life_pattern_tracker/services/auth_token_store.dart";
-import "package:life_pattern_tracker/utils/dev_spoof.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 
 class AccountScreen extends ConsumerWidget {
@@ -34,7 +32,6 @@ class AccountScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final hasCloudSession = AuthTokenStore.read().isNotEmpty;
     final apiReady = ApiConfig.isConfigured;
-    final spoofLevel = ref.watch(devSpoofLevelProvider);
 
     Future<void> refreshAll() async {
       await CloudSyncService.syncOnSignIn();
@@ -242,54 +239,6 @@ class AccountScreen extends ConsumerWidget {
                       )
                     : const Icon(Icons.chevron_right),
                 onTap: usage.syncing ? null : refreshAll,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                "Test data (spoof)",
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SegmentedButton<DevSpoofLevel>(
-                segments: const [
-                  ButtonSegment(
-                    value: DevSpoofLevel.off,
-                    label: Text("Real data"),
-                    icon: Icon(Icons.smart_toy_outlined),
-                  ),
-                  ButtonSegment(
-                    value: DevSpoofLevel.best,
-                    label: Text("Best"),
-                    icon: Icon(Icons.thumb_up_alt_outlined),
-                  ),
-                  ButtonSegment(
-                    value: DevSpoofLevel.medium,
-                    label: Text("Medium"),
-                    icon: Icon(Icons.trending_up_outlined),
-                  ),
-                  ButtonSegment(
-                    value: DevSpoofLevel.bad,
-                    label: Text("Bad"),
-                    icon: Icon(Icons.thumb_down_alt_outlined),
-                  ),
-                ],
-                selected: {spoofLevel},
-                onSelectionChanged: (set) {
-                  final selected = set.first;
-                  DevSpoof.setLevel(selected);
-                  ref.read(devSpoofLevelProvider.notifier).state = selected;
-                  // Reload providers so the UI updates immediately.
-                  ref.read(usageProvider.notifier).checkPermission();
-                  ref.read(habitTrackerProvider.notifier).refresh();
-                },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Spoofing updates Dashboard + Habit immediately. Go to Health and pull to refresh if needed.",
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
             ],
           ),

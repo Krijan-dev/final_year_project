@@ -16,10 +16,7 @@ class SubpageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return AppGradientBackground(
-      dark: isDark,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(

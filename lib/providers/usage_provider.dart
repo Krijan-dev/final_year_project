@@ -6,7 +6,6 @@ import "package:life_pattern_tracker/services/dashboard_metrics_service.dart";
 import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
-import "package:life_pattern_tracker/utils/dev_spoof.dart";
 
 final usageStatsServiceProvider = Provider<UsageStatsService>((ref) => UsageStatsService());
 final usageStorageServiceProvider = Provider<UsageStorageService>((ref) => UsageStorageService());
@@ -133,7 +132,6 @@ class UsageNotifier extends StateNotifier<UsageState> {
   }
 
   Future<void> _syncToCloud(DailyUsageModel? today) async {
-    if (DevSpoof.enabled) return; // Don't pollute your DB while testing UI.
     if (!_usageRemote.isConfigured || today == null) return;
     final email = await _authStorage.getSessionEmail();
     if (email == null) return;

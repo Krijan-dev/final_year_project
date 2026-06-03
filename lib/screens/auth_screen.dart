@@ -166,6 +166,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final isDark = scheme.brightness == Brightness.dark;
+    final cardColor = theme.cardTheme.color ?? scheme.surfaceContainerHigh;
+    final cardBorder = scheme.outlineVariant.withValues(alpha: isDark ? 0.55 : 0.35);
+    final cardShadow = isDark
+        ? <BoxShadow>[]
+        : [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ];
 
     return Scaffold(
       body: Container(
@@ -174,8 +187,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              scheme.primaryContainer.withValues(alpha: 0.5),
-              scheme.secondaryContainer.withValues(alpha: 0.35),
+              scheme.primaryContainer.withValues(alpha: 0.62),
+              scheme.secondaryContainer.withValues(alpha: 0.46),
               scheme.surface,
             ],
           ),
@@ -190,21 +203,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Container(
-                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 16),
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.94),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: cardBorder, width: 1.2),
+                        boxShadow: cardShadow,
                       ),
                       child: Column(
                         children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: scheme.primary.withValues(alpha: 0.11),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
+                            ),
+                            child: Text(
+                              "Secure access",
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
                           Container(
                             width: 64,
                             height: 64,
@@ -220,7 +243,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           Text(
                             "Welcome Back",
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            style: theme.textTheme.headlineSmall?.copyWith(
                                   fontWeight: FontWeight.w800,
                                 ),
                           ),
@@ -228,8 +251,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           Text(
                             "Sign in or create an account to continue using Life Pattern Tracker.",
                             textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: scheme.onSurfaceVariant,
                                   height: 1.35,
                                 ),
                           ),
@@ -239,36 +262,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     const SizedBox(height: 18),
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.96),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.98)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.07),
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(color: cardBorder),
+                        boxShadow: cardShadow,
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
                         child: Column(
                           children: [
-                            TabBar(
-                              controller: _tabs,
-                              onTap: (_) => _resetRegisterFlow(),
-                              dividerColor: Colors.transparent,
-                              indicatorSize: TabBarIndicatorSize.tab,
-                              indicator: BoxDecoration(
-                                color: scheme.primary.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(12),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest.withValues(
+                                  alpha: isDark ? 0.85 : 0.55,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                              labelColor: scheme.primary,
-                              unselectedLabelColor: scheme.onSurfaceVariant,
-                              tabs: const [
-                                Tab(text: "Log in"),
-                                Tab(text: "Sign up"),
-                              ],
+                              child: TabBar(
+                                controller: _tabs,
+                                onTap: (_) => _resetRegisterFlow(),
+                                dividerColor: Colors.transparent,
+                                indicatorSize: TabBarIndicatorSize.tab,
+                                indicator: BoxDecoration(
+                                  color: scheme.primary.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: scheme.primary.withValues(alpha: 0.32)),
+                                ),
+                                labelColor: scheme.primary,
+                                labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+                                unselectedLabelColor: scheme.onSurfaceVariant,
+                                tabs: const [
+                                  Tab(text: "Log in"),
+                                  Tab(text: "Sign up"),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 14),
                             AnimatedBuilder(
@@ -369,6 +397,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: _busy ? null : _submitLogin,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
               icon: _busy
                   ? const SizedBox(
                       height: 18,
@@ -400,8 +432,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
-              if (useCloudVerify) ...[
-                Row(
+            if (useCloudVerify) ...[
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.42),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
                   children: [
                     for (var i = 0; i < stepLabels.length; i++) ...[
                       if (i > 0)
@@ -431,6 +469,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                       ),
                     ],
                   ],
+                ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -465,6 +504,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 if (useCloudVerify)
                   FilledButton.icon(
                     onPressed: _busy ? null : _sendVerificationCode,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                     icon: _busy
                         ? const SizedBox(
                             height: 18,
@@ -500,6 +543,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _busy ? null : _verifyCode,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   icon: _busy
                       ? const SizedBox(
                           height: 18,
@@ -582,6 +629,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: _busy ? null : _submitRegister,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   icon: _busy
                       ? const SizedBox(
                           height: 18,

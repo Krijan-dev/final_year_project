@@ -30,7 +30,7 @@ class SummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cardColor = color ?? theme.colorScheme.primary;
     final track = theme.colorScheme.outlineVariant.withValues(
-      alpha: theme.brightness == Brightness.dark ? 0.45 : 0.85,
+      alpha: theme.brightness == Brightness.dark ? 0.75 : 0.85,
     );
     final fraction = progress?.clamp(0.0, 1.0);
 
