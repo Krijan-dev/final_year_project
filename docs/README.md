@@ -17,10 +17,7 @@ Start here for the full system picture:
 | [EMAIL_VERIFICATION.md](EMAIL_VERIFICATION.md) | Developers | SMTP / sign-up verification codes |
 | [PASSWORD_RESET.md](PASSWORD_RESET.md) | Developers | Forgot-password flow |
 | [SUPPORT_CHAT.md](SUPPORT_CHAT.md) | Developers | User ↔ admin live chat via API |
-| [USAGE_AND_DOCKER.md](USAGE_AND_DOCKER.md) | Developers | Docker workflow (optional) |
-| [RENDER_FIX.md](RENDER_FIX.md) | Developers | Common Render deploy issues |
 | [SECURITY_GITHUB_ALERTS.md](SECURITY_GITHUB_ALERTS.md) | Developers | Secret scanning / `.env` hygiene |
-| [NAV_BAR_IDEAS.md](NAV_BAR_IDEAS.md) | Planning | Future navigation ideas |
 
 **Regenerate Word manuals**
 

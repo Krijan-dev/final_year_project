@@ -1,5 +1,8 @@
+import "dart:io";
+
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:life_pattern_tracker/services/health_connect_service.dart";
 import "package:life_pattern_tracker/data/mood_types.dart";
 import "package:life_pattern_tracker/models/habit_log_preset.dart";
 import "package:life_pattern_tracker/models/mood_type.dart";
@@ -137,6 +140,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
       logs: logs,
     );
     _applyTodayLogsToHabits();
+    await _syncSleepHabitFromHealth();
   }
 
   Future<void> _persist() async {
@@ -408,6 +412,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
     required HabitLogAmountUnit amountUnit,
     String? dateKey,
   }) {
+    if (_isSleepLogKey(activityKey)) return;
     final targetDateKey = dateKey ?? WeekCalendar.todayKey;
     final formatted = HabitLogDetailsFormatter.format(subtitle, amountUnit);
     final entry = TodayLogEntry(
@@ -442,6 +447,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   }
 
   void _markHabitFromLog(String activityKey, String dateKey) {
+    if (_isSleepLogKey(activityKey)) return;
     final habitId = mapLogKeyToHabitId(activityKey);
     if (habitId == null) return;
     final dayIndex = WeekCalendar.weekIndexForDateKey(dateKey);
@@ -464,6 +470,7 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   void _applyTodayLogsToHabits() {
     // Rebuild weekly checks from all current-week logs (supports backdated entries).
     for (final log in state.logs) {
+      if (_isSleepLogKey(log.activityKey)) continue;
       _markHabitFromLog(log.activityKey, log.dateKey);
     }
   }
@@ -471,6 +478,37 @@ class HabitTrackerNotifier extends StateNotifier<HabitTrackerState> {
   Future<void> refresh() async {
     state = HabitTrackerState.loading();
     await _load();
+  }
+
+  static bool _isSleepLogKey(String activityKey) =>
+      activityKey == "sleep" || mapLogKeyToHabitId(activityKey) == "sleep";
+
+  /// Sleep is read from Health (Health Connect), not manual habit logs.
+  Future<void> _syncSleepHabitFromHealth() async {
+    if (!Platform.isAndroid || !state.ready) return;
+    final data = await HealthConnectService.load(includeWeekTrend: false);
+    final hours = data.sleepHoursLastNight;
+    if (hours == null || hours <= 0) return;
+
+    final todayIndex = WeekCalendar.todayWeekIndex;
+    if (todayIndex < 0 || todayIndex > 6) return;
+
+    const goalHours = 8.0;
+    final metGoal = hours >= goalHours;
+    final updated = state.habits.map((h) {
+      if (h.id != "sleep") return h;
+      final days = List<bool>.from(h.weekCompleted);
+      days[todayIndex] = metGoal;
+      return HabitTrackerHabit(
+        id: h.id,
+        name: h.name,
+        emoji: h.emoji,
+        iconBackground: h.iconBackground,
+        weekCompleted: days,
+      );
+    }).toList();
+    state = state.copyWith(habits: updated);
+    await _persist();
   }
 }
 

@@ -43,14 +43,12 @@ See [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md) and [docs/MONGODB.md](docs/MONGODB.
 
 ## Database + admin website plan
 
-Full plan (Word + Markdown): [docs/DATABASE_AND_WEBSITE_PLAN.docx](docs/DATABASE_AND_WEBSITE_PLAN.docx) · [docs/DATABASE_AND_WEBSITE_PLAN.md](docs/DATABASE_AND_WEBSITE_PLAN.md)
+Database & website plan: [docs/DATABASE_AND_WEBSITE_PLAN.md](docs/DATABASE_AND_WEBSITE_PLAN.md)
 
 **No local npm server:** [docs/DEPLOY_API_CLOUD.md](docs/DEPLOY_API_CLOUD.md) — deploy API to Render + Atlas; phone syncs over HTTPS.
-
-**Future nav tab ideas:** [docs/NAV_BAR_IDEAS.md](docs/NAV_BAR_IDEAS.md)
 
 **Website (separate repo):** [LifePatternAI_Website](https://github.com/Krijan-dev/LifePatternAI_Website) — Next.js on Vercel · [docs/VERCEL_WEBSITE_GUIDE.md](docs/VERCEL_WEBSITE_GUIDE.md)
 
 ## Full Guide
 
-See [docs/USAGE_AND_DOCKER.md](docs/USAGE_AND_DOCKER.md) for app usage, Docker, and troubleshooting.
+See [docs/PROJECT_COMPLETE_GUIDE.md](docs/PROJECT_COMPLETE_GUIDE.md) for troubleshooting and feature overview.

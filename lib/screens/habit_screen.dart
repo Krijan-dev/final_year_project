@@ -71,7 +71,9 @@ class HabitScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           _TodaysLogCard(
-            logs: state.todayLogs,
+            logs: state.todayLogs
+                .where((e) => e.activityKey != "sleep")
+                .toList(),
             onAdd: () => _showAddLogSheet(context, ref),
           ),
         ],
@@ -226,6 +228,9 @@ class _AddLogSheetState extends ConsumerState<_AddLogSheet> {
     }
 
     final preset = _selectedPreset;
+    if (preset != null && preset.id == "sleep") {
+      return;
+    }
     if (preset == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -303,7 +308,7 @@ class _AddLogSheetState extends ConsumerState<_AddLogSheet> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                for (final preset in HabitLogPresets.all)
+                for (final preset in HabitLogPresets.all.where((p) => p.id != "sleep"))
                   _PresetChip(
                     preset: preset,
                     selected: _selectedPreset?.id == preset.id && !_customMode,

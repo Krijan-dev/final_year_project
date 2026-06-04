@@ -125,7 +125,7 @@ Restart the app after changing `.env`. Grant **Usage access** on Android.
 
 - [MONGODB.md](MONGODB.md) — database schema  
 - [SECURITY_GITHUB_ALERTS.md](SECURITY_GITHUB_ALERTS.md) — fix GitHub secret alerts  
-- [USAGE_AND_DOCKER.md](USAGE_AND_DOCKER.md) — features & Docker  
+- [PROJECT_COMPLETE_GUIDE.md](PROJECT_COMPLETE_GUIDE.md) — full feature overview & troubleshooting  
 
 ---
 

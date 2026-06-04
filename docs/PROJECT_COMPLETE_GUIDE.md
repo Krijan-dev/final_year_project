@@ -164,7 +164,7 @@ Free tier **sleeps** after ~15 min idle; first request may take 30–60s.
 
 **Health check:** `GET https://YOUR-SERVICE.onrender.com/health` → `{"ok":true,"mongo":true}`
 
-See [DEPLOY_API_CLOUD.md](DEPLOY_API_CLOUD.md) and [RENDER_FIX.md](RENDER_FIX.md).
+See [DEPLOY_API_CLOUD.md](DEPLOY_API_CLOUD.md) (set Render **Root Directory** to `server` if build fails).
 
 ### 4.2 Authentication
 
@@ -338,22 +338,17 @@ Setup: [VERCEL_WEBSITE_GUIDE.md](VERCEL_WEBSITE_GUIDE.md).
 | **README.md** | This index |
 | **PROJECT_COMPLETE_GUIDE.md** / **.docx** | Full system guide (this document) |
 | **User_Manual_In_A_Nutshell.docx** | Short end-user manual |
-| **User_Manual_Life_Pattern_Tracker.docx** | Older user manual (if present) |
 | **HOW_TO_RUN.md** | Clone → Atlas → local API → Flutter |
 | **DEPLOY_API_CLOUD.md** | Render + Atlas production API |
 | **VERCEL_WEBSITE_GUIDE.md** | Website on Vercel + env vars |
 | **ENV_SETUP.md** | `.env` and `sync-env.ps1` |
 | **MONGODB.md** | Collections and REST usage |
 | **DATABASE_AND_WEBSITE_PLAN.md** | Roadmap for admin features |
-| **DATABASE_AND_WEBSITE_PLAN.docx** | Word export of plan |
 | **firebase_testing_quickstart.md** | Tester APK workflow |
 | **EMAIL_VERIFICATION.md** | SMTP setup for sign-up |
 | **PASSWORD_RESET.md** | Reset flow |
 | **SUPPORT_CHAT.md** | Admin/user chat |
-| **USAGE_AND_DOCKER.md** | Docker optional dev |
-| **RENDER_FIX.md** | Render troubleshooting |
 | **SECURITY_GITHUB_ALERTS.md** | No secrets in git |
-| **NAV_BAR_IDEAS.md** | Future UI ideas |
 | **generate_user_manual.py** | Builds user Word manual |
 | **generate_project_guide.py** | Builds this guide’s `.docx` |
 
