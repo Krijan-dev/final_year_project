@@ -1,7 +1,6 @@
 # Database, Cloud Sync & Admin Website — Plan
 
-> **Word version:** open [`DATABASE_AND_WEBSITE_PLAN.docx`](DATABASE_AND_WEBSITE_PLAN.docx) in Microsoft Word (same folder).  
-> Regenerate: `python scripts/generate_database_plan_docx.py`
+> Markdown only (Word export removed). Regenerate Word optionally: `python scripts/generate_database_plan_docx.py`
 
 ## Executive summary
 
@@ -123,4 +122,4 @@ The website **does not** connect to MongoDB directly.
 5. Add habit/mood sync endpoints + Flutter calls
 6. Build admin website on **Vercel** (calls same cloud API)
 
-See **`docs/DATABASE_AND_WEBSITE_PLAN.docx`** for full tables, timeline, and environment variable list.
+See this file for tables, timeline, and environment variable list.

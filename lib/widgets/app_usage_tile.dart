@@ -1,5 +1,7 @@
+import "package:fl_chart/fl_chart.dart";
 import "package:flutter/material.dart";
 import "package:life_pattern_tracker/models/app_usage_model.dart";
+import "package:life_pattern_tracker/models/usage_session_model.dart";
 import "package:life_pattern_tracker/utils/formatters.dart";
 import "package:intl/intl.dart";
 
@@ -43,7 +45,6 @@ class _AppUsageTileState extends State<AppUsageTile> {
     final onColor = Theme.of(context).colorScheme.onPrimaryContainer;
     final theme = Theme.of(context);
     final hasBuckets = app.buckets.isNotEmpty;
-    final timeFmt = DateFormat.Hm();
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -88,34 +89,144 @@ class _AppUsageTileState extends State<AppUsageTile> {
           ),
           if (_expanded && hasBuckets)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    "Sessions today",
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  ...app.buckets.map((session) {
-                    final start = DateTime.fromMillisecondsSinceEpoch(session.startTimeMs);
-                    final end = DateTime.fromMillisecondsSinceEpoch(session.endTimeMs);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        "${timeFmt.format(start)} – ${timeFmt.format(end)} · "
-                        "${formatDurationMs(session.durationMs)}",
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    );
-                  }),
-                ],
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+              child: _AppSessionsChart(
+                buckets: app.buckets,
+                barColor: theme.colorScheme.primary,
+                labelColor: theme.colorScheme.onSurfaceVariant,
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Bar chart of each session’s duration; X-axis labels show session start time.
+class _AppSessionsChart extends StatelessWidget {
+  const _AppSessionsChart({
+    required this.buckets,
+    required this.barColor,
+    required this.labelColor,
+  });
+
+  final List<UsageSessionModel> buckets;
+  final Color barColor;
+  final Color labelColor;
+
+  @override
+  Widget build(BuildContext context) {
+    if (buckets.isEmpty) return const SizedBox.shrink();
+
+    final timeFmt = DateFormat.Hm();
+    final durationsMin = buckets
+        .map((b) => (b.durationMs / 60000).ceil().clamp(1, 24 * 60))
+        .toList();
+    final maxY = durationsMin.reduce((a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          "Sessions today",
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: labelColor),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 148,
+          child: BarChart(
+            BarChartData(
+              maxY: maxY.toDouble() * 1.2,
+              minY: 0,
+              alignment: BarChartAlignment.spaceAround,
+              groupsSpace: 8,
+              barTouchData: BarTouchData(
+                enabled: true,
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    final session = buckets[group.x];
+                    final start = DateTime.fromMillisecondsSinceEpoch(session.startTimeMs);
+                    final end = DateTime.fromMillisecondsSinceEpoch(session.endTimeMs);
+                    return BarTooltipItem(
+                      "${timeFmt.format(start)} – ${timeFmt.format(end)}\n"
+                      "${formatDurationMs(session.durationMs)}",
+                      TextStyle(
+                        color: Theme.of(context).colorScheme.onInverseSurface,
+                        fontSize: 12,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: maxY > 60 ? 30 : (maxY > 15 ? 5 : 1),
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: labelColor.withValues(alpha: 0.15),
+                  strokeWidth: 1,
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 32,
+                    interval: maxY > 60 ? 30 : (maxY > 15 ? 5 : 1),
+                    getTitlesWidget: (value, meta) {
+                      if (value < 0 || value > maxY * 1.2) {
+                        return const SizedBox.shrink();
+                      }
+                      return Text(
+                        "${value.toInt()}m",
+                        style: TextStyle(fontSize: 10, color: labelColor),
+                      );
+                    },
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 28,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.toInt();
+                      if (i < 0 || i >= buckets.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final start = DateTime.fromMillisecondsSinceEpoch(
+                        buckets[i].startTimeMs,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          timeFmt.format(start),
+                          style: TextStyle(fontSize: 9, color: labelColor),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              barGroups: durationsMin.asMap().entries.map((entry) {
+                return BarChartGroupData(
+                  x: entry.key,
+                  barRods: [
+                    BarChartRodData(
+                      toY: entry.value.toDouble(),
+                      color: barColor,
+                      width: buckets.length > 8 ? 10 : 16,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

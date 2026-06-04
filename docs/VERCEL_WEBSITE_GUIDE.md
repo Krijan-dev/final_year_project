@@ -285,7 +285,6 @@ For a supervisor demo: open the Vercel site first, then hit the Render `/health`
 | [DEPLOY_API_CLOUD.md](DEPLOY_API_CLOUD.md) | API on Render—no laptop npm |
 | [DATABASE_AND_WEBSITE_PLAN.md](DATABASE_AND_WEBSITE_PLAN.md) | DB schema + admin API phases |
 | [MONGODB.md](MONGODB.md) | Atlas setup |
-| [NAV_BAR_IDEAS.md](NAV_BAR_IDEAS.md) | Future app tabs |
 
 ---
 

@@ -12,6 +12,7 @@ import "package:life_pattern_tracker/models/today_log_entry.dart";
 import "package:life_pattern_tracker/models/today_log_group.dart";
 import "package:life_pattern_tracker/providers/habit_tracker_provider.dart";
 import "package:life_pattern_tracker/providers/insights_provider.dart";
+import "package:life_pattern_tracker/services/health_connect_service.dart";
 import "package:life_pattern_tracker/theme/app_colors.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 import "package:life_pattern_tracker/utils/habit_log_details_formatter.dart";
@@ -71,18 +72,19 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
       appBar: AppBar(
         title: Text(selectedHabit.name),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton.icon(
-              onPressed: () => _showQuickAddSheet(context, selectedHabit),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
+          if (selectedHabit.id != "sleep")
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilledButton.icon(
+                onPressed: () => _showQuickAddSheet(context, selectedHabit),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text("Add"),
               ),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text("Add"),
             ),
-          ),
         ],
       ),
       body: AppGradientBackground(
@@ -107,7 +109,10 @@ class _HabitDetailScreenState extends ConsumerState<HabitDetailScreen> {
             allLogs: state.logs,
           ),
           const SizedBox(height: 14),
-          _HabitLogsCard(logs: logs),
+          if (selectedHabit.id == "sleep")
+            const _SleepFromHealthCard()
+          else
+            _HabitLogsCard(logs: logs),
           const SizedBox(height: 14),
           _AiInsightMessagesCard(
             messages: relevantInsights,
@@ -920,6 +925,117 @@ class _HabitLogsCard extends StatelessWidget {
   }
 }
 
+/// Sleep is not manually logged; shows the same hours as the Health tab.
+class _SleepFromHealthCard extends StatefulWidget {
+  const _SleepFromHealthCard();
+
+  @override
+  State<_SleepFromHealthCard> createState() => _SleepFromHealthCardState();
+}
+
+class _SleepFromHealthCardState extends State<_SleepFromHealthCard> {
+  bool _loading = true;
+  String? _error;
+  double? _hours;
+  String? _sourceLine;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!Platform.isAndroid) {
+      setState(() {
+        _loading = false;
+        _error = "Sleep sync is available on Android only.";
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    final data = await HealthConnectService.load(includeWeekTrend: false);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _hours = data.sleepHoursLastNight;
+      _sourceLine = data.sleepDataSourceLine;
+      if (_hours == null || _hours! <= 0) {
+        _error = data.errorMessage?.trim().isNotEmpty == true
+            ? data.errorMessage
+            : "No sleep recorded yet. Open the Health tab and tap Refresh.";
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Sleep from Health",
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loading ? null : _load,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: "Refresh from Health",
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Sleep is not logged here. It is synced from your phone on the Health tab.",
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            if (_loading)
+              const LinearProgressIndicator(minHeight: 3)
+            else if (_error != null)
+              Text(_error!, style: TextStyle(color: theme.colorScheme.error))
+            else ...[
+              Text(
+                "${_hours!.toStringAsFixed(1)} h last night",
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              if (_sourceLine != null && _sourceLine!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _sourceLine!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              _FactorBar(
+                label: "8-hour goal",
+                valueText: "${((_hours! / 8) * 100).clamp(0, 100).round()}%",
+                progress: (_hours! / 8).clamp(0.0, 1.0),
+                barColor: const Color(0xFF6366F1),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ConnectedMetricsCard extends StatefulWidget {
   const _ConnectedMetricsCard({
     required this.habit,
@@ -949,6 +1065,8 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
 
   bool get _supportsImport => widget.habit.id == "exercise" || widget.habit.id == "sleep";
 
+  bool get _isSleepHabit => widget.habit.id == "sleep";
+
   double _habitTotalFromLogs() {
     var total = 0.0;
     for (final e in widget.allLogs) {
@@ -975,11 +1093,24 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
       _error = null;
     });
     try {
+      if (_isSleepHabit) {
+        final data = await HealthConnectService.load(includeWeekTrend: false);
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _sleepHoursLastNight = data.sleepHoursLastNight;
+          if (_sleepHoursLastNight == null || _sleepHoursLastNight! <= 0) {
+            _error = data.errorMessage?.trim().isNotEmpty == true
+                ? data.errorMessage
+                : "No sleep recorded yet. Open the Health tab and refresh.";
+          }
+        });
+        return;
+      }
+
       final health = Health();
       await health.configure();
-      final reads = widget.habit.id == "sleep"
-          ? const [HealthDataType.SLEEP_SESSION, HealthDataType.SLEEP_ASLEEP]
-          : const [HealthDataType.STEPS];
+      const reads = [HealthDataType.STEPS];
       final permissions = List<HealthDataAccess>.filled(reads.length, HealthDataAccess.READ);
       final has = await health.hasPermissions(reads, permissions: permissions);
       if (has != true) {
@@ -995,28 +1126,7 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
 
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
-      if (widget.habit.id == "exercise") {
-        _stepsToday = await health.getTotalStepsInInterval(startOfDay, now);
-      } else {
-        final sleepStart = startOfDay.subtract(const Duration(hours: 18));
-        var points = await health.getHealthDataFromTypes(
-          types: const [HealthDataType.SLEEP_SESSION],
-          startTime: sleepStart,
-          endTime: now,
-        );
-        if (points.isEmpty) {
-          points = await health.getHealthDataFromTypes(
-            types: const [HealthDataType.SLEEP_ASLEEP],
-            startTime: sleepStart,
-            endTime: now,
-          );
-        }
-        double hours = 0;
-        for (final p in points) {
-          hours += p.dateTo.difference(p.dateFrom).inMinutes / 60.0;
-        }
-        _sleepHoursLastNight = hours > 0 ? hours : null;
-      }
+      _stepsToday = await health.getTotalStepsInInterval(startOfDay, now);
       if (!mounted) return;
       setState(() => _loading = false);
     } catch (e, st) {
@@ -1072,11 +1182,11 @@ class _ConnectedMetricsCardState extends State<_ConnectedMetricsCard> {
               )
             else
               _MetricPanel(
-                title: "Sleep duration",
+                title: "Sleep last night",
                 value: _sleepHoursLastNight == null
                     ? "—"
                     : "${_sleepHoursLastNight!.toStringAsFixed(1)} h",
-                hint: "Mapped to your Sleep habit",
+                hint: "Same data as the Health tab (phone / Health Connect)",
               ),
             if (_supportsImport && !_loading && _error == null) ...[
               const SizedBox(height: 12),
