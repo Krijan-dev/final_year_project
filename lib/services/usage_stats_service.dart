@@ -2,8 +2,10 @@ import "dart:io";
 
 import "package:flutter/services.dart";
 import "package:life_pattern_tracker/models/daily_usage_model.dart";
+import "package:life_pattern_tracker/models/usage_session_model.dart";
 import "package:life_pattern_tracker/utils/app_log.dart";
 import "package:life_pattern_tracker/models/installed_app_model.dart";
+import "package:life_pattern_tracker/utils/today_date.dart";
 
 class UsageStatsService {
   static const MethodChannel _channel = MethodChannel("life_pattern_tracker/usage");
@@ -60,6 +62,27 @@ class UsageStatsService {
     return ok ?? false;
   }
 
+  /// Shows the system Health Connect dialog for Steps and Sleep together.
+  Future<Map<String, dynamic>?> requestHealthConnectPermissions() async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final payload = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        "requestHealthConnectPermissions",
+      );
+      if (payload == null) return null;
+      return Map<String, dynamic>.from(payload);
+    } on PlatformException catch (e, st) {
+      AppLog.e("requestHealthConnectPermissions failed: ${e.code}", error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  Future<bool> openPrimaryFitnessApp() async {
+    if (!Platform.isAndroid) return false;
+    final ok = await _channel.invokeMethod<bool>("openPrimaryFitnessApp");
+    return ok ?? false;
+  }
+
   /// Direct Health Connect read (accurate permissions + steps/sleep on all Android versions).
   Future<Map<String, dynamic>?> readHealthSummary() async {
     if (!Platform.isAndroid) return null;
@@ -73,18 +96,41 @@ class UsageStatsService {
     }
   }
 
+  /// Today only: local midnight → now via [UsageStatsManager.queryEvents] (native).
+  Future<List<PackageScreenTimeModel>> getTodayScreenTimeFromEvents() async {
+    if (!Platform.isAndroid) return const [];
+    try {
+      final payload = await _channel
+          .invokeMethod<List<dynamic>>("getTodayScreenTimeFromEvents")
+          .timeout(const Duration(seconds: 60), onTimeout: () => null);
+      if (payload == null || payload.isEmpty) return const [];
+      return payload
+          .whereType<Map>()
+          .map((e) => PackageScreenTimeModel.fromMap(Map<String, dynamic>.from(e)))
+          .where((e) => e.packageName.isNotEmpty && e.totalTimeMs > 0)
+          .toList()
+        ..sort((a, b) => b.totalTimeMs.compareTo(a.totalTimeMs));
+    } on PlatformException catch (e, st) {
+      AppLog.e("getTodayScreenTimeFromEvents failed: ${e.code}", error: e, stackTrace: st);
+      return const [];
+    }
+  }
+
   Future<DailyUsageModel?> getUsageStats({DateTime? day}) async {
     if (!Platform.isAndroid) return null;
+    final targetDay = day ?? DateTime.now();
+    final start = _startOfDay(targetDay);
+    final end = _endOfQuery(targetDay);
     final payload = await _channel
         .invokeMethod<Map<dynamic, dynamic>>(
       "getUsageStats",
       {
-        "startMillis": _startOfDay(day ?? DateTime.now()).millisecondsSinceEpoch,
-        "endMillis": _endOfQuery(day ?? DateTime.now()).millisecondsSinceEpoch,
+        "startMillis": start.millisecondsSinceEpoch,
+        "endMillis": end.millisecondsSinceEpoch,
       },
     )
         .timeout(
-      const Duration(seconds: 45),
+      const Duration(seconds: 60),
       onTimeout: () => null,
     );
     if (payload == null) return null;
@@ -98,9 +144,7 @@ class UsageStatsService {
   /// For today, query only up to now so totals match the system screen-time log.
   DateTime _endOfQuery(DateTime date) {
     final now = DateTime.now();
-    final sameDay =
-        date.year == now.year && date.month == now.month && date.day == now.day;
-    if (sameDay) return now;
+    if (TodayDate.isSameLocalDay(date)) return now;
     return DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
   }
 

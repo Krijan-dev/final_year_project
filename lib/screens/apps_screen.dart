@@ -12,8 +12,22 @@ class AppsScreen extends ConsumerWidget {
     final today = state.today;
 
     if (today == null || today.appUsages.isEmpty) {
-      return const Center(child: Text("No app usage data available yet."));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            state.syncing
+                ? "Loading today’s screen time…"
+                : "No app usage data available yet.\n"
+                    "Enable Usage access and pull to refresh.",
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
+
+    final sumAppMinutes = today.appUsages.fold<int>(0, (sum, a) => sum + a.usageTime);
+    final percentBase = sumAppMinutes > 0 ? sumAppMinutes : 1;
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -22,7 +36,7 @@ class AppsScreen extends ConsumerWidget {
         final app = today.appUsages[index];
         return AppUsageTile(
           app: app,
-          totalMinutes: today.totalScreenTime,
+          totalMinutes: percentBase,
         );
       },
     );

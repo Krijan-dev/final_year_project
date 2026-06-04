@@ -39,8 +39,8 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // Usage Access is granted in Android settings, so re-check when user returns.
       ref.read(usageProvider.notifier).checkPermission();
+      ref.read(usageProvider.notifier).refreshIfDayChanged();
     }
   }
 
