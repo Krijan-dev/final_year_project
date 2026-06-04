@@ -2,8 +2,10 @@ import "dart:io";
 
 import "package:flutter/material.dart";
 import "package:life_pattern_tracker/services/health_connect_service.dart";
+import "package:life_pattern_tracker/services/manual_sleep_storage.dart";
 import "package:life_pattern_tracker/widgets/account_avatar_button.dart";
 import "package:life_pattern_tracker/widgets/health_connect_prompt.dart";
+import "package:life_pattern_tracker/widgets/health_freshness_banner.dart";
 
 class HealthScreen extends StatefulWidget {
   const HealthScreen({super.key, this.embeddedInSubpage = false});
@@ -73,8 +75,71 @@ class _HealthScreenState extends State<HealthScreen> with WidgetsBindingObserver
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message!)),
       );
+    } else if (result.granted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Permissions updated. If a fitness app opened, enable Health Connect sharing for sleep, then Refresh.",
+          ),
+        ),
+      );
     }
+    await _load(requestPermission: true);
+  }
+
+  Future<void> _addManualSleep() async {
+    final controller = TextEditingController(
+      text: _sleepHoursLastNight != null && _sleepHoursLastNight! > 0
+          ? _sleepHoursLastNight!.toStringAsFixed(1)
+          : "",
+    );
+    final hours = await showDialog<double>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text("Sleep last night"),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: "Hours slept",
+              hintText: "e.g. 7.5",
+              suffixText: "h",
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () {
+                final v = double.tryParse(controller.text.trim().replaceAll(",", "."));
+                if (v == null || v <= 0 || v > 24) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text("Enter hours between 0.1 and 24")),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx, v);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+    if (hours == null || !mounted) return;
+    await ManualSleepStorage.saveForViewDay(hours);
     await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Sleep saved (${hours.toStringAsFixed(1)} h). Sleep score: ${SleepScore.percent(hours)}%",
+        ),
+      ),
+    );
   }
 
   @override
@@ -100,8 +165,13 @@ class _HealthScreenState extends State<HealthScreen> with WidgetsBindingObserver
             ),
           ),
           const SizedBox(height: 10),
-          if (_data != null)
+          if (_data != null) ...[
             _HealthPermissionStatusBar(data: _data!),
+            if (_data!.permissionsGranted && _data!.freshnessSubtitle != null) ...[
+              const SizedBox(height: 10),
+              HealthFreshnessBanner(data: _data!),
+            ],
+          ],
           const SizedBox(height: 16),
           if (_loading) ...[
             const Card(
@@ -120,18 +190,40 @@ class _HealthScreenState extends State<HealthScreen> with WidgetsBindingObserver
                 if (mounted) await _load();
               },
               onRetry: _load,
+              onOpenFitnessApp: _data!.installedFitnessAppNames.isEmpty
+                  ? null
+                  : () async {
+                      await HealthConnectService.openPrimaryFitnessApp();
+                    },
             ),
           ] else if (_data != null && _data!.permissionsGranted && !_data!.hasData) ...[
             _OverviewCard(
               stepsToday: _stepsToday ?? 0,
               sleepHoursLastNight: _sleepHoursLastNight,
+              sleepIsManual: _data?.sleepIsManual ?? false,
+              sleepScorePercent: _data?.sleepScorePercent ?? SleepScore.percent(_sleepHoursLastNight),
+              stepsDataSourceLine: _data?.stepsDataSourceLine,
+              sleepDataSourceLine: _data?.sleepIsManual == true
+                  ? "Sleep · manual entry (not from Health Connect)"
+                  : _data?.sleepDataSourceLine,
+            ),
+            const SizedBox(height: 10),
+            _HealthActionsRow(
+              data: _data,
+              onGrantSleep: _grantHealthAccess,
+              onOpenFitness: _data!.installedFitnessAppNames.isEmpty
+                  ? null
+                  : () async {
+                      await HealthConnectService.openPrimaryFitnessApp();
+                    },
+              onManualSleep: _addManualSleep,
             ),
             const SizedBox(height: 14),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  _data!.errorMessage ?? HealthConnectService.genericSyncHint,
+                  _data!.errorMessage ?? _data!.syncHint,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
@@ -140,6 +232,23 @@ class _HealthScreenState extends State<HealthScreen> with WidgetsBindingObserver
             _OverviewCard(
               stepsToday: _stepsToday ?? 0,
               sleepHoursLastNight: _sleepHoursLastNight,
+              sleepIsManual: _data?.sleepIsManual ?? false,
+              sleepScorePercent: _data?.sleepScorePercent ?? SleepScore.percent(_sleepHoursLastNight),
+              stepsDataSourceLine: _data?.stepsDataSourceLine,
+              sleepDataSourceLine: _data?.sleepIsManual == true
+                  ? "Sleep · manual entry (not from Health Connect)"
+                  : _data?.sleepDataSourceLine,
+            ),
+            const SizedBox(height: 10),
+            _HealthActionsRow(
+              data: _data,
+              onGrantSleep: _grantHealthAccess,
+              onOpenFitness: _data!.installedFitnessAppNames.isEmpty
+                  ? null
+                  : () async {
+                      await HealthConnectService.openPrimaryFitnessApp();
+                    },
+              onManualSleep: _addManualSleep,
             ),
             const SizedBox(height: 14),
             _WellnessScoreCard(
@@ -183,8 +292,14 @@ class _HealthPermissionStatusBar extends StatelessWidget {
       label = "Health Connect app needed — install or open below";
     } else if (!granted) {
       label = "Health Connect: allow Steps & Sleep for this app below";
+    } else if (!data.sleepPermissionGranted && data.stepsPermissionGranted) {
+      label = "Allow Sleep in Health Connect (Steps already allowed)";
     } else if (!data.hasData) {
-      label = "Health Connect: allowed — waiting for steps/sleep data";
+      label = data.installedFitnessAppNames.isEmpty
+          ? "Health Connect: allowed — connect a fitness or watch app"
+          : "Health Connect: allowed — enable sharing in ${data.installedFitnessAppNames.first}";
+    } else if (data.dataSourceLabels.isNotEmpty) {
+      label = "From ${data.dataSourceLabels.join(', ')} via Health Connect";
     } else {
       label = "Health Connect: connected — reading steps and sleep";
     }
@@ -288,14 +403,69 @@ class _Header extends StatelessWidget {
   }
 }
 
+class _HealthActionsRow extends StatelessWidget {
+  const _HealthActionsRow({
+    required this.data,
+    required this.onGrantSleep,
+    required this.onManualSleep,
+    this.onOpenFitness,
+  });
+
+  final HealthConnectData? data;
+  final VoidCallback onGrantSleep;
+  final VoidCallback onManualSleep;
+  final VoidCallback? onOpenFitness;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    if (d == null) return const SizedBox.shrink();
+    final needsSleepPerm = d.permissionsGranted && !d.sleepPermissionGranted;
+    final needsSleepData = (d.sleepHoursLastNight ?? 0) <= 0;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (needsSleepPerm)
+          FilledButton.tonalIcon(
+            onPressed: onGrantSleep,
+            icon: const Icon(Icons.bedtime_outlined, size: 18),
+            label: const Text("Allow Sleep"),
+          ),
+        if (onOpenFitness != null && (needsSleepPerm || needsSleepData))
+          OutlinedButton.icon(
+            onPressed: onOpenFitness,
+            icon: const Icon(Icons.directions_walk_outlined, size: 18),
+            label: Text("Sync ${d.installedFitnessAppNames.first}"),
+          ),
+        if (needsSleepData)
+          OutlinedButton.icon(
+            onPressed: onManualSleep,
+            icon: const Icon(Icons.edit_note_outlined, size: 18),
+            label: const Text("Add sleep manually"),
+          ),
+      ],
+    );
+  }
+}
+
 class _OverviewCard extends StatelessWidget {
   const _OverviewCard({
     required this.stepsToday,
     required this.sleepHoursLastNight,
+    this.sleepIsManual = false,
+    this.sleepScorePercent = 0,
+    this.stepsDataSourceLine,
+    this.sleepDataSourceLine,
   });
 
   final int stepsToday;
   final double? sleepHoursLastNight;
+  final bool sleepIsManual;
+  final int sleepScorePercent;
+  final String? stepsDataSourceLine;
+  final String? sleepDataSourceLine;
 
   @override
   Widget build(BuildContext context) {
@@ -330,7 +500,7 @@ class _OverviewCard extends StatelessWidget {
                 Expanded(
                   child: _MetricTile(
                     icon: Icons.bedtime_outlined,
-                    label: "Sleep (last night)",
+                    label: sleepIsManual ? "Sleep (manual)" : "Sleep (last night)",
                     value: sleepHoursLastNight == null
                         ? "—"
                         : "${sleepHoursLastNight!.toStringAsFixed(1)} h",
@@ -338,6 +508,36 @@ class _OverviewCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (stepsDataSourceLine != null && stepsDataSourceLine!.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                stepsDataSourceLine!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            if (sleepDataSourceLine != null && sleepDataSourceLine!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                sleepDataSourceLine!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            if (sleepHoursLastNight != null && sleepHoursLastNight! > 0) ...[
+              const SizedBox(height: 10),
+              Text(
+                "Sleep score: $sleepScorePercent% (8 h goal)",
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -3,6 +3,7 @@ import "dart:io";
 import "package:flutter/material.dart";
 import "package:life_pattern_tracker/services/health_connect_service.dart";
 import "package:life_pattern_tracker/widgets/health_connect_prompt.dart";
+import "package:life_pattern_tracker/widgets/health_freshness_banner.dart";
 
 /// Shows today’s steps and recent sleep from Health Connect on dashboards / habits.
 class HealthConnectSummaryCard extends StatefulWidget {
@@ -109,6 +110,10 @@ class _HealthConnectSummaryCardState extends State<HealthConnectSummaryCard> {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if (data.freshnessSubtitle != null) ...[
+              const SizedBox(height: 10),
+              HealthFreshnessBanner(data: data),
+            ],
           ],
         ),
       ),

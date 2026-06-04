@@ -8,6 +8,7 @@ import "package:life_pattern_tracker/services/gemini_key_store.dart";
 import "package:life_pattern_tracker/services/usage_remote_service.dart";
 import "package:life_pattern_tracker/services/usage_stats_service.dart";
 import "package:life_pattern_tracker/services/usage_storage_service.dart";
+import "package:life_pattern_tracker/utils/today_date.dart";
 
 const String kUsageOwnerEmailKey = "usage_owner_email";
 const String kUsageCloudPurgedKey = "usage_cloud_purged_v3";
@@ -68,6 +69,7 @@ class UsageNotifier extends StateNotifier<UsageState> {
   final UsageStorageService _storageService;
   final AuthStorageService _authStorage;
   final UsageRemoteService _usageRemote;
+  String? _lastRefreshDayKey;
 
   Future<void> initialize() async {
     try {
@@ -139,20 +141,54 @@ class UsageNotifier extends StateNotifier<UsageState> {
   Future<void> refreshToday() async {
     state = state.copyWith(syncing: true, clearError: true);
     try {
-      final today = await _statsService.getUsageStats();
+      final fetched = await _statsService.getUsageStats();
+      final today = _resolveTodayModel(fetched);
       if (today != null) {
         await _storageService.saveDay(today);
+        _lastRefreshDayKey = TodayDate.dayKey;
       }
       final history = await _storageService.getAllDays();
+      final resolved = today ?? _todayFromHistory(history);
       state = state.copyWith(
         syncing: false,
-        today: today ?? state.today,
+        today: resolved,
         history: history,
       );
-      await _syncToCloud(today);
+      await _syncToCloud(resolved);
     } catch (e) {
       state = state.copyWith(syncing: false, error: e.toString());
     }
+  }
+
+  /// Refresh when the calendar day changes (midnight) or returning to the app.
+  Future<void> refreshIfDayChanged() async {
+    if (_lastRefreshDayKey != TodayDate.dayKey) {
+      final stale = state.today;
+      if (stale != null && !TodayDate.isSameLocalDay(stale.date)) {
+        state = state.copyWith(today: null);
+      }
+      if (state.hasPermission) {
+        await refreshToday();
+      }
+    }
+  }
+
+  DailyUsageModel? _resolveTodayModel(DailyUsageModel? model) {
+    if (model == null) return null;
+    if (!TodayDate.isSameLocalDay(model.date)) return null;
+    // Reject impossible totals cached by an older buggy build (e.g. 77h screen time).
+    if (model.totalScreenTime > 24 * 60) return null;
+    return model;
+  }
+
+  DailyUsageModel? _todayFromHistory(List<DailyUsageModel> history) {
+    for (var i = history.length - 1; i >= 0; i--) {
+      final day = history[i];
+      if (!TodayDate.isSameLocalDay(day.date)) continue;
+      if (day.totalScreenTime > 24 * 60) continue;
+      return day;
+    }
+    return null;
   }
 
   Future<void> _syncToCloud(DailyUsageModel? today) async {

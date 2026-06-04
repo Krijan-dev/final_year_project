@@ -37,9 +37,26 @@ object AndroidCompat {
         return "In $path, find \"$appLabel\" and turn it On."
     }
 
-    fun healthSyncHint(): String =
-        "Connect your fitness app (Google Fit, Samsung Health, Fitbit, Garmin, etc.) " +
-            "to Health Connect, then allow this app to read Steps and Sleep."
+    fun healthSyncHint(context: Context): String {
+        val installed = FitnessAppRegistry.getInstalled(context)
+        if (installed.isEmpty()) {
+            return "Install a fitness or watch app (Samsung Health, Google Fit, Fitbit, Garmin, etc.), " +
+                "turn on Health Connect sharing in that app, then allow this app to read Steps and Sleep."
+        }
+        val names = installed.take(3).joinToString { it.displayName }
+        val extra = if (installed.size > 3) " (+${installed.size - 3} more)" else ""
+        return "Open $names$extra, enable Health Connect / data sharing, then refresh. " +
+            "Steps and sleep are read from your fitness apps via Health Connect."
+    }
+
+    fun openPrimaryFitnessApp(context: Context): Boolean {
+        val primary = FitnessAppRegistry.primaryPackage(FitnessAppRegistry.getInstalled(context))
+            ?: return false
+        val launch = context.packageManager.getLaunchIntentForPackage(primary) ?: return false
+        launch.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        context.startActivity(launch)
+        return true
+    }
 
     fun usageAccessIntents(context: Context, packageName: String): List<Intent> {
         val pm = context.packageManager

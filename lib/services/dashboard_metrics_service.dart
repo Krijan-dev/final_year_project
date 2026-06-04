@@ -209,6 +209,10 @@ abstract final class DashboardMetricsService {
     int average,
   ) {
     if (today == null) return "Grant usage access and refresh";
+    final phoneSource = today.screenTimeSource?.trim();
+    if (phoneSource != null && phoneSource.isNotEmpty) {
+      return phoneSource;
+    }
     if (average <= 0) {
       return "${formatDateShort(today.date)} · goal ${formatMinutes(dailyScreenTimeGoalMinutes)}";
     }

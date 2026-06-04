@@ -67,6 +67,9 @@ class _ScreenTimeScreenState extends ConsumerState<ScreenTimeScreen> {
     final dash = ref.watch(dashboardProvider);
     final m = dash.metrics;
     final notifier = ref.read(dashboardProvider.notifier);
+    final todayApps = usage.today?.appUsages ?? const <AppUsageModel>[];
+    final sumAppMinutes = todayApps.fold<int>(0, (s, a) => s + a.usageTime);
+    final appPercentBase = sumAppMinutes > 0 ? sumAppMinutes : 1;
 
     return RefreshIndicator(
       onRefresh: notifier.refresh,
@@ -172,10 +175,10 @@ class _ScreenTimeScreenState extends ConsumerState<ScreenTimeScreen> {
                 ),
               )
             else
-              ...usage.today!.appUsages.map(
+              ...todayApps.map(
                 (app) => AppUsageTile(
                   app: app,
-                  totalMinutes: usage.today!.totalScreenTime,
+                  totalMinutes: appPercentBase,
                 ),
               ),
           ],
@@ -996,7 +999,7 @@ class _ScreenTimeHeader extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           metrics.hasUsageData
-              ? "Usage breakdown, trends, and app details."
+              ? "Today — usage events from midnight to now (Usage Access); health apps tracked separately."
               : "Enable usage access below to see your screen time.",
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

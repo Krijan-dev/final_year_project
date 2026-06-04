@@ -2,6 +2,7 @@
 
 Flutter application for tracking app usage, insights, and productivity patterns.
 
+- **Full system guide (app + Render + website + docs map):** [docs/PROJECT_COMPLETE_GUIDE.md](docs/PROJECT_COMPLETE_GUIDE.md) · [Word](docs/PROJECT_COMPLETE_GUIDE.docx)
 - **Setup (MongoDB, API, Gemini):** [docs/HOW_TO_RUN.md](docs/HOW_TO_RUN.md)
 - **Env sync (app + website + server):** [docs/ENV_SETUP.md](docs/ENV_SETUP.md) — run `.\scripts\sync-env.ps1`
 - **GitHub secret scanning alerts:** [docs/SECURITY_GITHUB_ALERTS.md](docs/SECURITY_GITHUB_ALERTS.md)

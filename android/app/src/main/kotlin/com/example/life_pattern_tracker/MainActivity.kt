@@ -21,6 +21,8 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -37,39 +39,33 @@ import org.json.JSONObject
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-private fun queryForegroundStats(
-    context: Context,
-    startMillis: Long,
-    endMillis: Long,
-    excludePackage: String? = null
-): Map<String, UsageStats> {
-    val effectiveEnd = minOf(endMillis, System.currentTimeMillis())
-    if (effectiveEnd <= startMillis) return emptyMap()
-
-    val manager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-    val interval = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        UsageStatsManager.INTERVAL_BEST
-    } else {
-        UsageStatsManager.INTERVAL_DAILY
-    }
-    val stats = manager.queryUsageStats(interval, startMillis, effectiveEnd) ?: return emptyMap()
-
-    val byPkg = LinkedHashMap<String, UsageStats>()
-    for (stat in stats) {
-        val pkg = stat.packageName ?: continue
-        if (excludePackage != null && pkg == excludePackage) continue
-        val foreground = stat.totalTimeInForeground
-        if (foreground <= 0L) continue
-        val existing = byPkg[pkg]
-        if (existing == null || foreground > existing.totalTimeInForeground) {
-            byPkg[pkg] = stat
-        }
-    }
-    return byPkg
-}
-
 class MainActivity : FlutterFragmentActivity() {
     private val channelName = "life_pattern_tracker/usage"
+    private var pendingHealthPermissionResult: MethodChannel.Result? = null
+
+    private val requestHealthPermissionsLauncher =
+        registerForActivityResult(
+            PermissionController.createRequestPermissionResultContract()
+        ) { granted ->
+            val callback = pendingHealthPermissionResult ?: return@registerForActivityResult
+            pendingHealthPermissionResult = null
+            val stepsPerm = granted.contains(
+                androidx.health.connect.client.permission.HealthPermission
+                    .getReadPermission(androidx.health.connect.client.records.StepsRecord::class)
+            )
+            val sleepPerm = granted.contains(
+                androidx.health.connect.client.permission.HealthPermission
+                    .getReadPermission(androidx.health.connect.client.records.SleepSessionRecord::class)
+            )
+            callback.success(
+                hashMapOf(
+                    "grantedSteps" to stepsPerm,
+                    "grantedSleep" to sleepPerm,
+                    "allGranted" to (stepsPerm && sleepPerm),
+                )
+            )
+        }
+
     companion object {
         const val LIMITS_PREF = "screen_time_limit_prefs"
         const val LIMITS_JSON_KEY = "limits_json_v1"
@@ -104,13 +100,36 @@ class MainActivity : FlutterFragmentActivity() {
                         )
                     }
                     "getHealthSyncHint" -> {
-                        result.success(AndroidCompat.healthSyncHint())
+                        result.success(AndroidCompat.healthSyncHint(applicationContext))
+                    }
+                    "openPrimaryFitnessApp" -> {
+                        result.success(AndroidCompat.openPrimaryFitnessApp(applicationContext))
                     }
                     "openHealthConnectApp" -> {
                         result.success(AndroidCompat.openHealthConnectApp(applicationContext))
                     }
                     "openHealthConnectPermissions" -> {
                         result.success(AndroidCompat.openHealthConnectPermissions(applicationContext))
+                    }
+                    "requestHealthConnectPermissions" -> {
+                        val status = HealthConnectBridge.sdkStatus(applicationContext)
+                        if (!HealthConnectBridge.isSdkUsable(status)) {
+                            result.success(
+                                hashMapOf(
+                                    "error" to "health_connect_not_installed",
+                                    "grantedSteps" to false,
+                                    "grantedSleep" to false,
+                                    "allGranted" to false,
+                                )
+                            )
+                            return@setMethodCallHandler
+                        }
+                        if (pendingHealthPermissionResult != null) {
+                            result.error("BUSY", "Permission request already in progress", null)
+                            return@setMethodCallHandler
+                        }
+                        pendingHealthPermissionResult = result
+                        requestHealthPermissionsLauncher.launch(HealthConnectBridge.requiredReadPermissions())
                     }
                     "readHealthSummary" -> {
                         lifecycleScope.launch {
@@ -126,9 +145,18 @@ class MainActivity : FlutterFragmentActivity() {
                             result.error("PERMISSION_DENIED", "Usage access is not granted", null)
                             return@setMethodCallHandler
                         }
-                        val startMillis = call.argument<Number>("startMillis")?.toLong() ?: startOfDayMillis()
-                        val endMillis = call.argument<Number>("endMillis")?.toLong() ?: System.currentTimeMillis()
+                        val startMillis = call.argument<Number>("startMillis")?.toLong()
+                            ?: UsageEventsScreenTimeCalculator.localMidnightMillis()
+                        val endMillis = call.argument<Number>("endMillis")?.toLong()
+                            ?: System.currentTimeMillis()
                         result.success(getUsageStats(startMillis, endMillis))
+                    }
+                    "getTodayScreenTimeFromEvents" -> {
+                        if (!hasUsagePermission()) {
+                            result.error("PERMISSION_DENIED", "Usage access is not granted", null)
+                            return@setMethodCallHandler
+                        }
+                        result.success(getTodayScreenTimeFromEvents())
                     }
                     "listInstalledApps" -> result.success(listInstalledApps())
                     "getAppIcon" -> {
@@ -202,67 +230,71 @@ class MainActivity : FlutterFragmentActivity() {
         return c.timeInMillis
     }
 
+    /** yyyy-MM-dd for the local calendar day containing [dayStartMillis]. */
+    private fun localDayKey(dayStartMillis: Long): String {
+        val c = Calendar.getInstance()
+        c.timeInMillis = dayStartMillis
+        val y = c.get(Calendar.YEAR)
+        val m = c.get(Calendar.MONTH) + 1
+        val d = c.get(Calendar.DAY_OF_MONTH)
+        return String.format(java.util.Locale.US, "%04d-%02d-%02d", y, m, d)
+    }
+
+    private fun getTodayScreenTimeFromEvents(): List<HashMap<String, Any>> {
+        val packages = UsageEventsScreenTimeCalculator.computeToday(
+            applicationContext,
+            applicationContext.packageName,
+        )
+        return UsageEventsScreenTimeCalculator.toMethodChannelMaps(packages)
+    }
+
     private fun getUsageStats(startMillis: Long, endMillis: Long): HashMap<String, Any> {
         val packageManager = applicationContext.packageManager
-        val byPkg = queryForegroundStats(
+        val day = UsageStatsCalculator.compute(
             applicationContext,
             startMillis,
             endMillis,
-            applicationContext.packageName
+            applicationContext.packageName,
         )
 
-        val appList = mutableListOf<HashMap<String, Any>>()
-        val hourly = IntArray(24) { 0 }
-        var totalMinutes = 0
-
-        for ((pkg, stat) in byPkg) {
-            val timeMillis = stat.totalTimeInForeground
-            if (timeMillis <= 0L) continue
-
-            val minutes = (timeMillis / 60000L).toInt()
-            if (minutes <= 0) continue
-            totalMinutes += minutes
-
-            val appName = try {
-                val appInfo = packageManager.getApplicationInfo(pkg, 0)
-                packageManager.getApplicationLabel(appInfo).toString()
-            } catch (e: Exception) {
-                pkg
-            }
-
+        val appList = day.apps.map { app ->
             val appInfo = try {
-                packageManager.getApplicationInfo(pkg, 0)
-            } catch (e: Exception) {
+                packageManager.getApplicationInfo(app.packageName, 0)
+            } catch (_: Exception) {
                 null
             }
-
-            val category = appCategory(appInfo)
-
-            val appMap = hashMapOf<String, Any>(
-                "appName" to appName,
-                "packageName" to pkg,
-                "usageTime" to minutes,
-                "lastUsed" to stat.lastTimeUsed,
-                "category" to category
-            )
-            appList.add(appMap)
-
-            if (stat.lastTimeUsed > 0L) {
-                val cal = Calendar.getInstance()
-                cal.timeInMillis = stat.lastTimeUsed
-                val hour = cal.get(Calendar.HOUR_OF_DAY).coerceIn(0, 23)
-                hourly[hour] += minutes
+            val appName = try {
+                if (appInfo != null) {
+                    packageManager.getApplicationLabel(appInfo).toString()
+                } else {
+                    app.packageName
+                }
+            } catch (_: Exception) {
+                app.packageName
             }
+            hashMapOf<String, Any>(
+                "appName" to appName,
+                "packageName" to app.packageName,
+                "usageTime" to app.usageTimeMinutes,
+                "totalTime" to app.totalTimeMs,
+                "lastUsed" to app.lastUsed,
+                "category" to appCategory(appInfo),
+                "buckets" to app.buckets.map { session ->
+                    hashMapOf<String, Any>(
+                        "startTime" to session.startTime,
+                        "endTime" to session.endTime,
+                        "duration" to session.duration,
+                    )
+                },
+            )
         }
 
-        appList.sortByDescending { (it["usageTime"] as Int) }
-
         return hashMapOf(
-            "date" to java.text.SimpleDateFormat("yyyy-MM-dd'T'00:00:00", java.util.Locale.US)
-                .format(java.util.Date(startMillis)),
-            "totalScreenTime" to totalMinutes,
-            "hourlyUsageMinutes" to hourly.toList(),
-            "apps" to appList
+            "date" to localDayKey(startMillis),
+            "totalScreenTime" to day.totalScreenTimeMinutes,
+            "screenTimeSource" to day.screenTimeSource,
+            "hourlyUsageMinutes" to day.hourlyUsageMinutes,
+            "apps" to appList,
         )
     }
 
@@ -443,17 +475,13 @@ class ScreenTimeLimitWorker(
         startMillis: Long,
         endMillis: Long
     ): Map<String, Int> {
-        val out = HashMap<String, Int>()
-        for ((pkg, stat) in queryForegroundStats(
+        val day = UsageStatsCalculator.compute(
             context,
             startMillis,
             endMillis,
-            context.packageName
-        )) {
-            val minutes = (stat.totalTimeInForeground / 60000L).toInt()
-            if (minutes > 0) out[pkg] = minutes
-        }
-        return out
+            context.packageName,
+        )
+        return day.apps.associate { it.packageName to it.usageTimeMinutes }
     }
 
     private fun notifyLimitReached(
